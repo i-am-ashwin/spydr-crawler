@@ -8,7 +8,7 @@ import { LoadingSpinner } from './components/loading-spinner';
 
 export default function Home() {
   const [url, setUrl] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -16,9 +16,20 @@ export default function Home() {
     if (!url) return;
     setIsSubmitting(true);
     try {
-      // call api for link analysis
-      // use id returned
-      const resultId=1;
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/crawl`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to submit crawl job');
+      }
+      
+      const data = await response.json();
+      const resultId = data.id;
       router.push(`/result/${resultId}`);
     } catch (error) {
       console.error('ERROR', error);
