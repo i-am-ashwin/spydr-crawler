@@ -10,9 +10,9 @@ import (
 
 func main() {
 	port := getEnv("PORT", "8080")
-	r := http.SetupRouter()
 	dataBase := db.ConnectToDB(getEnv("DB_URL", "app:app@tcp(db:3306)/crawler?parseTime=true&charset=utf8mb4&loc=UTC"))
 	db.AutoMigrate(dataBase)
+	r := http.SetupRouter(dataBase)
 	log.Printf("Server starting on port %s", port)
 	if err := r.Run(":" + port); err != nil {
 		log.Fatal("Failed to start server:", err)
