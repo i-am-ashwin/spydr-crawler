@@ -166,16 +166,6 @@ export const useCrawlStore = create<CrawlStore>()(
 
         const onConnectionChange = (connected: boolean) => {
           set({ sseConnected: connected });
-          if (!connected) {
-            const { abortController } = get();
-            if (abortController && !abortController.signal.aborted) {
-              setTimeout(() => {
-                console.log('🔄 Reconnecting to SSE...');
-                const { connectSSE } = get();
-                connectSSE();
-              }, 5000);
-            }
-          }
         };
 
         const controller = sseManager.connect(onJobUpdate, onConnectionChange);

@@ -1,17 +1,25 @@
 import { CrawlJob, PaginationParams, PaginatedResponse } from './types';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+const getAuthHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem('auth-token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 export const apiCall = async <T>(
   endpoint: string, 
   options: RequestInit = {}
 ): Promise<T> => {
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...getAuthHeaders(),
+    ...(options.headers as Record<string, string> || {}),
+  };
+
+  const response = await fetch(`${API_BASE}/api${endpoint}`, {
     ...options,
+    headers,
   });
 
   if (!response.ok) {
