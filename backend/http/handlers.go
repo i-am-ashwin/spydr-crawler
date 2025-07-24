@@ -3,6 +3,7 @@ package http
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -22,42 +23,74 @@ type createCrawlJobReq struct {
 	URL string `json:"url" binding:"required,url"`
 }
 
-func (h *Handlers) CreateCrawlJob(ctx *gin.Context) {
+type paginatedResponse struct {
+	Data   interface{} `json:"data"`
+	Total  int64       `json:"total"`
+	Limit  int         `json:"limit"`
+	Offset int         `json:"offset"`
+}
+
+func (h *Handlers) CreateCrawlJob(c *gin.Context) {
 	var req createCrawlJobReq
-	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	job := models.CrawlJob{URL: req.URL, Status: models.StatusQueued}
+
+	job := models.CrawlJob{
+		URL:    req.URL,
+		Status: models.StatusQueued,
+	}
+
 	if err := h.DB.Create(&job).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(500, gin.H{"error": "Failed to create crawl job"})
 		return
 	}
-	ctx.JSON(http.StatusCreated, job)
+
+	log.Printf("Created crawl job %d for URL: %s", job.ID, job.URL)
+	c.JSON(201, job)
 }
 func (h *Handlers) ListCrawlJobs(ctx *gin.Context) {
 	var jobs []models.CrawlJob
 	db := h.DB
+
 	if status := ctx.Query("status"); status != "" {
 		db = db.Where("status = ?", status)
 	}
+
 	limitStr := ctx.DefaultQuery("limit", "50")
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit parameter"})
 		return
 	}
+
 	offsetStr := ctx.DefaultQuery("offset", "0")
 	offset, err := strconv.Atoi(offsetStr)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid offset parameter"})
 		return
 	}
+
+	var total int64
+	if err := db.Model(&models.CrawlJob{}).Count(&total).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	if err := db.Limit(limit).Offset(offset).Order("created_at DESC").Find(&jobs).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	ctx.JSON(http.StatusOK, jobs)
+
+	response := paginatedResponse{
+		Data:   jobs,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	}
+
+	ctx.JSON(http.StatusOK, response)
 }
 
 func (h *Handlers) GetCrawlJob(ctx *gin.Context) {
@@ -168,4 +201,30 @@ func (h *Handlers) StopCrawlJob(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusBadRequest, gin.H{"error": "Job cannot be stopped"})
+}
+
+func (h *Handlers) DeleteCrawlJob(ctx *gin.Context) {
+	jobID := ctx.Param("id")
+
+	var job models.CrawlJob
+	if err := h.DB.First(&job, jobID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Job not found"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if job.Status == models.StatusRunning {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete running job. Stop it first."})
+		return
+	}
+
+	if err := h.DB.Delete(&job).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "Job deleted successfully"})
 }
