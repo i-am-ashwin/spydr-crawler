@@ -13,60 +13,48 @@ export interface SSEManager {
 export const createSSEManager = (): SSEManager => {
   return {
     connect: (onJobUpdate, onConnectionChange) => {
-      console.log('🔌 Connecting to SSE...');
       const abortController = new AbortController();
 
       onConnectionChange(true);
 
-      fetchEventSource(`${API_BASE}/crawl/updates`, {
+      const token = localStorage.getItem('auth-token');
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      fetchEventSource(`${API_BASE}/api/crawl/updates`, {
         signal: abortController.signal,
+        headers,
         
         async onopen(response) {
           if (response.ok && response.headers.get('content-type')?.includes('text/event-stream')) {
-            console.log('✅ SSE connected');
-            return; // Connection successful
+            return;
+          } else if (response.status === 401) {
+            throw new Error(`SSE authentication failed: ${response.status} ${response.statusText}`);
           } else {
-            console.error('❌ SSE connection failed:', response.status, response.statusText);
             throw new Error(`Failed to open SSE connection: ${response.status} ${response.statusText}`);
           }
         },
 
         onmessage(event) {
-          try {
             if (event.event === 'crawl_job_update') {
               const jobData: CrawlJob = JSON.parse(event.data);
-              console.log('📡 SSE job update received:', jobData);
               onJobUpdate(jobData);
-            } else if (event.event === 'ping') {
-              console.log('💓 SSE heartbeat received');
             }
-          } catch (error) {
-            console.error('❌ Error parsing SSE message:', error);
-          }
         },
 
         onerror(error) {
-          console.error('❌ SSE connection error:', error);
           onConnectionChange(false);
-          
-          // Don't automatically reconnect for aborted connections
           if (error instanceof DOMException && error.name === 'AbortError') {
             return;
           }
-          
-          // Attempt to reconnect after 5 seconds for other errors
-          setTimeout(() => {
-            console.log('🔄 Attempting SSE reconnection...');
-            // Note: Reconnection logic should be handled by the store
-          }, 5000);
         },
 
         onclose() {
-          console.log('🔌 SSE connection closed');
           onConnectionChange(false);
         }
       }).catch((error) => {
-        console.error('❌ fetchEventSource error:', error);
         onConnectionChange(false);
       });
 
@@ -75,7 +63,6 @@ export const createSSEManager = (): SSEManager => {
 
     disconnect: (controller) => {
       if (controller) {
-        console.log('🔌 Disconnecting SSE...');
         controller.abort();
       }
     }
