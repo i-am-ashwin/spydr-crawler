@@ -127,6 +127,7 @@ func (pool *WorkerPool) processNextJob(workerID int) {
 		job.ExternalLinks = result.ExternalLinks
 		job.InaccessibleLinks = result.BrokenLinks
 		job.HasLoginForm = result.HasLoginForm
+		job.HTMLVersion = result.HTMLVersion
 	}
 
 	if err := pool.db.Save(&job).Error; err != nil {
