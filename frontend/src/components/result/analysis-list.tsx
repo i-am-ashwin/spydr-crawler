@@ -1,4 +1,6 @@
-import {  LinkIcon, LinkSlashIcon, LockClosedIcon } from "@heroicons/react/24/solid";
+import {  LinkIcon, LinkSlashIcon } from "@heroicons/react/24/solid";
+import {  LockClosedIcon } from "@heroicons/react/24/outline";
+
 import { DocumentIcon } from "@heroicons/react/24/outline";
 import { motion } from "motion/react";
 
@@ -44,18 +46,11 @@ const itemConfig: any = {
         icon: <LockClosedIcon className="h-4 w-4 text-red-400 flex-shrink-0" />,
     },
 };
-export default function AnalysisListItem({ type, value, isLoading }: {
+export default function AnalysisListItem({ type, value }: {
     type: string;
     value: string;
-    isLoading: boolean;
 }) {
     const config =  itemConfig[type];
-    if (isLoading) {
-        return (
-            <div className="bg-neutral-800 rounded-lg animate-pulse h-10 w-full">
-            </div>
-        );
-    }
     return (
         <motion.div
             initial={{ opacity: 0, x: -10 }}
