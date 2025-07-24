@@ -13,30 +13,30 @@ import (
 
 type WorkerPool struct {
 	db              *gorm.DB
-	workerCount     int
 	stopChan        chan bool
 	activeJobs      map[uint]context.CancelFunc
 	activeJobsMutex sync.RWMutex
 }
 
-func CrawlerWorkerPool(db *gorm.DB, workerCount int) *WorkerPool {
+func CrawlerWorkerPool(db *gorm.DB) *WorkerPool {
 	return &WorkerPool{
-		db:          db,
-		workerCount: workerCount,
-		stopChan:    make(chan bool),
-		activeJobs:  make(map[uint]context.CancelFunc),
+		db:         db,
+		stopChan:   make(chan bool),
+		activeJobs: make(map[uint]context.CancelFunc),
 	}
 }
 
 func (pool *WorkerPool) Start() {
-	for i := 0; i < pool.workerCount; i++ {
+	workersCount := 3
+	for i := 0; i < workersCount; i++ {
 		go pool.worker(i)
 	}
-	log.Printf("Started %d workers", pool.workerCount)
+	log.Printf("Started %d workers", workersCount)
 }
 
 func (pool *WorkerPool) Stop() {
-	for i := 0; i < pool.workerCount; i++ {
+	workersCount := 3
+	for i := 0; i < workersCount; i++ {
 		pool.stopChan <- true
 	}
 }
