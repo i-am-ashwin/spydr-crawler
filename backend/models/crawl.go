@@ -9,10 +9,11 @@ import (
 type JobStatus string
 
 const (
-	StatusQueued  JobStatus = "queued"
-	StatusRunning JobStatus = "running"
-	StatusDone    JobStatus = "done"
-	StatusError   JobStatus = "error"
+	StatusQueued   JobStatus = "queued"
+	StatusRunning  JobStatus = "running"
+	StatusDone     JobStatus = "done"
+	StatusError    JobStatus = "error"
+	StatusCanceled JobStatus = "canceled"
 )
 
 type CrawlJob struct {
@@ -31,7 +32,7 @@ type CrawlJob struct {
 	InaccessibleLinks int            `json:"inaccessibleLinks"`
 	HasLoginForm      bool           `json:"hasLoginForm"`
 	ScreenshotPath    string         `json:"screenshotPath"`
-	Status            JobStatus      `gorm:"type:enum('queued','running','done','error');default:'queued'" json:"status"`
+	Status            JobStatus      `gorm:"type:enum('queued','running','done','error','canceled');default:'queued'" json:"status"`
 	ErrorMessage      string         `json:"errorMessage"`
 	CreatedAt         time.Time      `json:"createdAt"`
 	UpdatedAt         time.Time      `json:"updatedAt"`
