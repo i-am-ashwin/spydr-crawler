@@ -5,7 +5,6 @@ This test task is for the Full-Stack Developer position with a front-end focus. 
 This exercise has two goals:
 
 For us: To evaluate your production-quality code, API design reasoning, and overall development approach.
-For you: To experience the day-to-day work at Sykell through a realistic project.
 Code and project ownership
 This is purely an exercise; we have no intention of using your submission in production. You retain full ownership of your work and may license it as you see fit. If you choose not to move forward with us, you’re free to open-source it or include it in your portfolio.
 
