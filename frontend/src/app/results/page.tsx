@@ -27,28 +27,26 @@ export default function Results() {
     currentPage, 
     pageSize, 
     totalJobs,
-    listCrawlJobs, 
+    setPage, 
     deleteCrawlJob, 
-    createCrawlJob 
+    createCrawlJob,
+    connectSSE
   } = useCrawlStore();
   
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [currentPageState, setCurrentPageState] = useState(currentPage);
   
   useEffect(() => {
-    const loadJobs = async () => {
+    const initialize = async () => {
       try {
-        await listCrawlJobs({
-          limit: pageSize,
-          offset: currentPageState * pageSize
-        });
+        await setPage(0);
+        connectSSE();
       } catch (err) {
-        console.error('failed', err);
+        console.error('Failed to initialize:', err);
       }
     };
 
-    loadJobs();
-  }, [currentPageState, pageSize, listCrawlJobs]);
+    initialize();
+  }, [setPage, connectSSE]);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this report?')) return;
@@ -56,7 +54,7 @@ export default function Results() {
     try {
       await deleteCrawlJob(id);
     } catch (err) {
-      console.error('failed', err);
+      console.error('Delete failed:', err);
     }
   };
 
@@ -64,27 +62,25 @@ export default function Results() {
     try {
       await createCrawlJob(url);
     } catch (err) {
-      console.error('failed', err);
+      console.error('Rerun failed:', err);
     }
   };
 
-  const handleNextPage = () => {
-    const nextPage = currentPageState + 1;
-    const maxPage = Math.ceil(totalJobs / pageSize) - 1;
-    if (nextPage <= maxPage) {
-      setCurrentPageState(nextPage);
+  const handleNextPage = async () => {
+    if (currentPage < Math.ceil(totalJobs / pageSize) - 1) {
+      await setPage(currentPage + 1);
     }
   };
 
-  const handlePrevPage = () => {
-    if (currentPageState > 0) {
-      setCurrentPageState(currentPageState - 1);
+  const handlePrevPage = async () => {
+    if (currentPage > 0) {
+      await setPage(currentPage - 1);
     }
   };
 
   const totalPages = Math.ceil(totalJobs / pageSize);
-  const hasNextPage = currentPageState < totalPages - 1;
-  const hasPrevPage = currentPageState > 0;
+  const hasNextPage = currentPage < totalPages - 1;
+  const hasPrevPage = currentPage > 0;
   const columns = useMemo(
     () => [
       columnHelper.accessor('title', {
@@ -303,9 +299,9 @@ export default function Results() {
                   className="flex items-center justify-between rounded-lg border border-neutral-800 bg-neutral-900/30 px-6 py-4 backdrop-blur-sm"
                 >
                   <div className="text-sm text-neutral-400">
-                    Page {currentPageState + 1} of {totalPages} 
+                    Page {currentPage + 1} of {totalPages} 
                     <span className="ml-2">
-                      ({currentPageState * pageSize + 1}-{Math.min((currentPageState + 1) * pageSize, totalJobs)} of {totalJobs})
+                      ({currentPage * pageSize + 1}-{Math.min((currentPage + 1) * pageSize, totalJobs)} of {totalJobs})
                     </span>
                   </div>
                   

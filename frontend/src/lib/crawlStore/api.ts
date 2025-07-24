@@ -38,31 +38,7 @@ export const listCrawlJobsApi = async (params: PaginationParams = {}): Promise<P
   if (params.offset) queryParams.set('offset', params.offset.toString());
   if (params.status) queryParams.set('status', params.status);
 
-  // Try to get paginated response first, fallback to array if backend doesn't support it yet
-  try {
-    const response = await apiCall<PaginatedResponse<CrawlJob>>(`/crawl/list?${queryParams}`);
-    // If response has 'data' field, it's paginated
-    if (response && typeof response === 'object' && 'data' in response) {
-      return response;
-    }
-    // Otherwise, treat as array and create paginated response
-    const jobs = response as unknown as CrawlJob[];
-    return {
-      data: jobs,
-      total: jobs.length, // This is not accurate but works for now
-      limit: params.limit || 50,
-      offset: params.offset || 0,
-    };
-  } catch (error) {
-    // Fallback for old API format
-    const jobs = await apiCall<CrawlJob[]>(`/crawl/list?${queryParams}`);
-    return {
-      data: jobs,
-      total: jobs.length, // This is not accurate but works for now
-      limit: params.limit || 50,
-      offset: params.offset || 0,
-    };
-  }
+  return apiCall<PaginatedResponse<CrawlJob>>(`/crawl/list?${queryParams}`);
 };
 
 export const stopCrawlJobApi = async (id: number): Promise<void> => {

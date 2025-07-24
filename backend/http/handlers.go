@@ -30,10 +30,10 @@ type paginatedResponse struct {
 	Offset int         `json:"offset"`
 }
 
-func (h *Handlers) CreateCrawlJob(c *gin.Context) {
+func (h *Handlers) CreateCrawlJob(ctx *gin.Context) {
 	var req createCrawlJobReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -43,12 +43,12 @@ func (h *Handlers) CreateCrawlJob(c *gin.Context) {
 	}
 
 	if err := h.DB.Create(&job).Error; err != nil {
-		c.JSON(500, gin.H{"error": "Failed to create crawl job"})
+		ctx.JSON(500, gin.H{"error": "Failed to create crawl job"})
 		return
 	}
 
 	log.Printf("Created crawl job %d for URL: %s", job.ID, job.URL)
-	c.JSON(201, job)
+	ctx.JSON(201, job)
 }
 func (h *Handlers) ListCrawlJobs(ctx *gin.Context) {
 	var jobs []models.CrawlJob

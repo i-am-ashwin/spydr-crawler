@@ -4,7 +4,12 @@ import {  LockClosedIcon } from "@heroicons/react/24/outline";
 import { DocumentIcon } from "@heroicons/react/24/outline";
 import { motion } from "motion/react";
 
-const itemConfig: any = {
+interface ItemConfig {
+  title: string;
+  icon: React.ReactNode;
+}
+
+const itemConfig: Record<string, ItemConfig> = {
     h1: {
         title: 'H1 Tags',
         icon: <DocumentIcon className="h-4 w-4 text-blue-400 flex-shrink-0" />,

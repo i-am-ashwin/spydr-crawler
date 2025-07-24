@@ -10,14 +10,11 @@ import {
 } from './api';
 import { createSSEManager } from './sse';
 import { createSelectors, CrawlStoreSelectors } from './selectors';
-
-// Create SSE manager instance
 const sseManager = createSSEManager();
 
 export const useCrawlStore = create<CrawlStore>()(
   devtools(
     (set, get) => ({
-      // Initial State
       jobs: [],
       isLoading: false,
       error: null,
@@ -32,9 +29,9 @@ export const useCrawlStore = create<CrawlStore>()(
         
         try {
           const job = await createCrawlJobApi(url);
-
           set(state => ({
             jobs: [job, ...state.jobs],
+            totalJobs: state.totalJobs + 1,
             isLoading: false,
           }));
 
@@ -47,37 +44,15 @@ export const useCrawlStore = create<CrawlStore>()(
       },
 
       getCrawlJob: async (id: number) => {
-        // First, try to get the job from the store (SSE data)
         const existingJob = get().jobs.find(job => job.id === id);
         if (existingJob) {
-          // Return the SSE version immediately, but still fetch fresh data
-          setTimeout(async () => {
-            try {
-              const freshJob = await getCrawlJobApi(id);
-              const { upsertJobFromSSE } = get();
-              upsertJobFromSSE(freshJob);
-            } catch (error) {
-              console.warn('Failed to fetch fresh job data:', error);
-            }
-          }, 0);
-          
           return existingJob;
         }
-
-        // If not in store, fetch from API
         set({ isLoading: true, error: null });
         
         try {
           const job = await getCrawlJobApi(id);
-          
-          // Add the job to the store
-          set(state => ({
-            jobs: state.jobs.some(j => j.id === id) 
-              ? state.jobs.map(j => j.id === id ? job : j)
-              : [...state.jobs, job],
-            isLoading: false,
-          }));
-
+          set({ isLoading: false });
           return job;
         } catch (error) {
           const apiError: ApiError = { message: (error as Error).message };
@@ -95,9 +70,9 @@ export const useCrawlStore = create<CrawlStore>()(
           set({
             jobs: response.data,
             totalJobs: response.total,
+            currentPage: Math.floor((params.offset || 0) / (params.limit || 10)),
+            pageSize: params.limit || 10,
             isLoading: false,
-            currentPage: Math.floor((params.offset || 0) / (params.limit || 50)),
-            pageSize: params.limit || 50,
           });
 
           return response.data;
@@ -113,8 +88,6 @@ export const useCrawlStore = create<CrawlStore>()(
         
         try {
           await stopCrawlJobApi(id);
-
-          // Optimistically update the job status
           set(state => ({
             jobs: state.jobs.map(job => 
               job.id === id 
@@ -134,10 +107,9 @@ export const useCrawlStore = create<CrawlStore>()(
         
         try {
           await deleteCrawlJobApi(id);
-
-          // Remove the job from the list
           set(state => ({
             jobs: state.jobs.filter(job => job.id !== id),
+            totalJobs: Math.max(0, state.totalJobs - 1),
           }));
         } catch (error) {
           const apiError: ApiError = { message: (error as Error).message };
@@ -146,45 +118,43 @@ export const useCrawlStore = create<CrawlStore>()(
         }
       },
 
-      // Local State Management
-      updateJob: (id: number, updates: Partial<CrawlJob>) => {
-        set(state => ({
-          jobs: state.jobs.map(job =>
-            job.id === id ? { ...job, ...updates } : job
-          ),
-        }));
-      },
-
+      // SSE Real-time Updates
       upsertJobFromSSE: (job: CrawlJob) => {
         set(state => {
           const existingIndex = state.jobs.findIndex(j => j.id === job.id);
+          
           if (existingIndex >= 0) {
-            // Update existing job
             const updatedJobs = [...state.jobs];
             updatedJobs[existingIndex] = job;
             return { jobs: updatedJobs };
           } else {
-            // Add new job at the beginning
-            return { jobs: [job, ...state.jobs] };
+            return state;
           }
         });
-      },
-
-      removeJob: (id: number) => {
-        set(state => ({
-          jobs: state.jobs.filter(job => job.id !== id),
-        }));
       },
 
       clearError: () => {
         set({ error: null });
       },
 
-      // SSE Management
+      setPage: async (page: number) => {
+        const { pageSize, listCrawlJobs } = get();
+        await listCrawlJobs({ 
+          limit: pageSize, 
+          offset: page * pageSize 
+        });
+      },
+
+      refreshCurrentPage: async () => {
+        const { currentPage, pageSize, listCrawlJobs } = get();
+        await listCrawlJobs({ 
+          limit: pageSize, 
+          offset: currentPage * pageSize 
+        });
+      },
+
       connectSSE: () => {
         const { abortController: currentController } = get();
-        
-        // Abort existing connection
         if (currentController) {
           sseManager.disconnect(currentController);
         }
@@ -196,15 +166,11 @@ export const useCrawlStore = create<CrawlStore>()(
 
         const onConnectionChange = (connected: boolean) => {
           set({ sseConnected: connected });
-          
-          // Auto-reconnect logic for connection failures
           if (!connected) {
             const { abortController } = get();
-            // Only attempt reconnection if we still have an active controller
-            // and it wasn't manually disconnected
             if (abortController && !abortController.signal.aborted) {
               setTimeout(() => {
-                console.log('🔄 Attempting SSE reconnection...');
+                console.log('🔄 Reconnecting to SSE...');
                 const { connectSSE } = get();
                 connectSSE();
               }, 5000);
@@ -226,28 +192,14 @@ export const useCrawlStore = create<CrawlStore>()(
           });
         }
       },
-
-      // Utility Actions
-      refreshJobs: async () => {
-        const { listCrawlJobs, currentPage, pageSize } = get();
-        await listCrawlJobs({ 
-          limit: pageSize, 
-          offset: currentPage * pageSize 
-        });
-      },
-
-      getJobById: (id: number) => {
-        return get().jobs.find(job => job.id === id);
-      },
     }),
     {
-      name: 'crawl-store', // Name for Redux DevTools
+      name: 'crawl-store', 
     }
   )
 );
 
-// Enhanced selectors hook that combines store state with derived selectors
-export const useCrawlStoreSelectors = (): CrawlStore & CrawlStoreSelectors => {
+export const useCrawlStoreWithSelectors = (): CrawlStore & CrawlStoreSelectors => {
   const store = useCrawlStore();
   const selectors = createSelectors(store.jobs);
   

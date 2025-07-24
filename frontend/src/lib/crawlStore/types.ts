@@ -39,32 +39,32 @@ export interface ApiError {
 }
 
 export interface CrawlStore {
+  // State
   jobs: CrawlJob[];
   isLoading: boolean;
   error: ApiError | null;
-  
   sseConnected: boolean;
   abortController: AbortController | null;
-  
   totalJobs: number;
   currentPage: number;
   pageSize: number;
   
+  // API Actions
   createCrawlJob: (url: string) => Promise<CrawlJob>;
   getCrawlJob: (id: number) => Promise<CrawlJob>;
   listCrawlJobs: (params?: PaginationParams) => Promise<CrawlJob[]>;
   stopCrawlJob: (id: number) => Promise<void>;
   deleteCrawlJob: (id: number) => Promise<void>;
   
-  // Actions - Local state management
-  updateJob: (id: number, updates: Partial<CrawlJob>) => void;
+  // SSE update actions
   upsertJobFromSSE: (job: CrawlJob) => void;
-  removeJob: (id: number) => void;
-  clearError: () => void;
   
+  // utility actions 
+  clearError: () => void;
+  setPage: (page: number) => Promise<void>;
+  refreshCurrentPage: () => Promise<void>;
+  
+  // SSE Connection actions
   connectSSE: () => void;
   disconnectSSE: () => void;
-  
-  refreshJobs: () => Promise<void>;
-  getJobById: (id: number) => CrawlJob | undefined;
 }
