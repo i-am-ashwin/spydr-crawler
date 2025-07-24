@@ -78,6 +78,7 @@ func (h *Handlers) CrawlJobUpdatesSSE(ctx *gin.Context) {
 	ctx.Header("Cache-Control", "no-cache")
 	ctx.Header("Connection", "keep-alive")
 	ctx.Header("Access-Control-Allow-Headers", "Cache-Control")
+	ctx.Header("Access-Control-Allow-Origin", "http://localhost:3000")
 
 	clientChan := make(chan bool)
 
