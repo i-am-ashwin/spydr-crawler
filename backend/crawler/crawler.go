@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -23,6 +24,7 @@ type Result struct {
 	ExternalLinks int
 	BrokenLinks   int
 	HasLoginForm  bool
+	HTMLVersion   string
 }
 
 func Crawl(targetURL string) (Result, error) {
@@ -40,6 +42,7 @@ func Crawl(targetURL string) (Result, error) {
 
 	links := extractLinks(node)
 	analyzeLinkMetrics(&result, links, targetURL)
+	result.HTMLVersion = detectHTMLVersion(htmlContent)
 
 	return result, nil
 }
@@ -232,4 +235,36 @@ func hasPasswordInput(form *html.Node) bool {
 	})
 
 	return found
+}
+func detectHTMLVersion(htmlSource string) string {
+	doctypePattern := `(?i)<!DOCTYPE\s+([^>]+)>`
+	re := regexp.MustCompile(doctypePattern)
+	matches := re.FindStringSubmatch(htmlSource)
+
+	if len(matches) < 2 {
+		return "Unknown"
+	}
+
+	doctype := strings.ToLower(strings.TrimSpace(matches[1]))
+
+	switch {
+	case doctype == "html":
+		return "HTML5"
+	case strings.Contains(doctype, "xhtml 1.0 strict"):
+		return "XHTML 1.0 Strict"
+	case strings.Contains(doctype, "xhtml 1.0 transitional"):
+		return "XHTML 1.0 Transitional"
+	case strings.Contains(doctype, "xhtml 1.0 frameset"):
+		return "XHTML 1.0 Frameset"
+	case strings.Contains(doctype, "xhtml 1.1"):
+		return "XHTML 1.1"
+	case strings.Contains(doctype, "html 4.01 strict"):
+		return "HTML 4.01 Strict"
+	case strings.Contains(doctype, "html 4.01 transitional"):
+		return "HTML 4.01 Transitional"
+	case strings.Contains(doctype, "html 4.01 frameset"):
+		return "HTML 4.01 Frameset"
+	default:
+		return "Unknown"
+	}
 }
