@@ -58,6 +58,14 @@ func (h *Handlers) ListCrawlJobs(ctx *gin.Context) {
 		db = db.Where("status = ?", status)
 	}
 
+	if search := ctx.Query("search"); search != "" {
+		searchPattern := "%" + search + "%"
+		db = db.Where(
+			"title LIKE ? OR url LIKE ? OR html_version LIKE ? OR status LIKE ?",
+			searchPattern, searchPattern, searchPattern, searchPattern,
+		)
+	}
+
 	limitStr := ctx.DefaultQuery("limit", "50")
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {

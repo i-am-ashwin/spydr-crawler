@@ -45,6 +45,7 @@ export const listCrawlJobsApi = async (params: PaginationParams = {}): Promise<P
   if (params.limit) queryParams.set('limit', params.limit.toString());
   if (params.offset) queryParams.set('offset', params.offset.toString());
   if (params.status) queryParams.set('status', params.status);
+  if (params.search) queryParams.set('search', params.search);
 
   return apiCall<PaginatedResponse<CrawlJob>>(`/crawl/list?${queryParams}`);
 };

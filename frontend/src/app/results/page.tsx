@@ -11,7 +11,7 @@ import {
   getSortedRowModel,
   SortingState,
 } from '@tanstack/react-table';
-import { ChevronUpIcon, ChevronDownIcon, LinkIcon, ClockIcon, TrashIcon, ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon, CodeBracketIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
+import { ChevronUpIcon, ChevronDownIcon, LinkIcon, ClockIcon, TrashIcon, ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon, CodeBracketIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/solid';
 import { useCrawlStore } from '@/lib/crawlStore/store';
 import { CrawlJob } from '@/lib/crawlStore/types';
 import StatusText from '@/components/result/status-text';
@@ -27,14 +27,31 @@ export default function Results() {
     currentPage,
     pageSize,
     totalJobs,
+    searchTerm,
     setPage,
     deleteCrawlJob,
     createCrawlJob,
-    connectSSE
+    connectSSE,
+    setSearchTerm
   } = useCrawlStore();
 
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localSearchTerm !== searchTerm) {
+        setSearchTerm(localSearchTerm);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [localSearchTerm, searchTerm, setSearchTerm]);
+
+  useEffect(() => {
+    setLocalSearchTerm(searchTerm);
+  }, [searchTerm]);
+
   useEffect(() => {
     const initialize = async () => {
       try {
@@ -206,10 +223,37 @@ export default function Results() {
             <h1 className="mb-2 text-3xl font-bold">Analysis Results</h1>
             <p className="text-neutral-400">
               {totalJobs} {totalJobs === 1 ? 'result' : 'results'} found
+              {searchTerm && <span className="ml-1">for "{searchTerm}"</span>}
               {isLoading && <span className="ml-2 text-blue-400">(Loading...)</span>}
             </p>
           </div>
-
+          <div className='mb-4 flex items-center justify-between'>
+            <label className="relative block w-full">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-2">
+                <MagnifyingGlassIcon className="h-5 w-5 text-neutral-300" />
+              </span>
+              {localSearchTerm && (
+                <button
+                  onClick={() => {
+                    setLocalSearchTerm('');
+                    setSearchTerm('');
+                  }}
+                  className="absolute inset-y-0 right-0 flex items-center pr-2 text-neutral-400 hover:text-white"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              )}
+              <span className="sr-only">Search</span>
+              <input
+                className={`block w-full py-2 pr-9 pl-9 rounded-lg border border-neutral-700 bg-neutral-800/50 text-white placeholder:text-neutral-500 focus:border-white focus:outline-none focus:ring-2 focus:ring-white/20 ${isLoading ? 'opacity-50' : ''}`}
+                placeholder="Search by title, URL, or HTML version..."
+                type="text"
+                name="search"
+                value={localSearchTerm}
+                onChange={(e) => setLocalSearchTerm(e.target.value)}
+                disabled={isLoading}
+              /></label>
+          </div>
           {jobs.length === 0 && !isLoading ? (
             <motion.div
               initial={{ opacity: 0 }}
@@ -236,19 +280,6 @@ export default function Results() {
               transition={{ delay: 0.2, duration: 0.6 }}
               className="space-y-4"
             >
-              <div className='mb-4 flex items-center justify-between'>
-                <label className="relative block w-full">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-2">
-                    <MagnifyingGlassIcon className="h-5 w-5 text-neutral-300" />
-                  </span>
-                    <span className="sr-only">Search</span>
-                    <input
-                      className="block w-full py-2 pr-3 pl-9 rounded-lg border border-neutral-700 bg-neutral-800/50 text-white placeholder:text-neutral-500 focus:border-white focus:outline-none focus:ring-2 focus:ring-white/20"
-                  placeholder="Search by title, URL, or HTML version..."
-                      type="text"
-                      name="search"
-                    /></label>
-              </div>
               <div className="rounded-lg border border-neutral-800 bg-neutral-900/30 backdrop-blur-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -263,8 +294,8 @@ export default function Results() {
                               {header.isPlaceholder ? null : (
                                 <div
                                   className={`flex items-center gap-2 ${header.column.getCanSort()
-                                      ? 'cursor-pointer select-none hover:text-white'
-                                      : ''
+                                    ? 'cursor-pointer select-none hover:text-white'
+                                    : ''
                                     }`}
                                   onClick={header.column.getToggleSortingHandler()}
                                 >
@@ -276,14 +307,14 @@ export default function Results() {
                                     <div className="flex flex-col">
                                       <ChevronUpIcon
                                         className={`h-3 w-3 ${header.column.getIsSorted() === 'asc'
-                                            ? 'text-white'
-                                            : 'text-neutral-600'
+                                          ? 'text-white'
+                                          : 'text-neutral-600'
                                           }`}
                                       />
                                       <ChevronDownIcon
                                         className={`h-3 w-3 -mt-1 ${header.column.getIsSorted() === 'desc'
-                                            ? 'text-white'
-                                            : 'text-neutral-600'
+                                          ? 'text-white'
+                                          : 'text-neutral-600'
                                           }`}
                                       />
                                     </div>

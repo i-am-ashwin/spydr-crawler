@@ -24,6 +24,7 @@ export interface PaginationParams {
   limit?: number;
   offset?: number;
   status?: string;
+  search?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -48,6 +49,7 @@ export interface CrawlStore {
   totalJobs: number;
   currentPage: number;
   pageSize: number;
+  searchTerm: string;
   
   // API Actions
   createCrawlJob: (url: string) => Promise<CrawlJob>;
@@ -63,6 +65,7 @@ export interface CrawlStore {
   clearError: () => void;
   setPage: (page: number) => Promise<void>;
   refreshCurrentPage: () => Promise<void>;
+  setSearchTerm: (searchTerm: string) => Promise<void>;
   
   // SSE Connection actions
   connectSSE: () => void;
