@@ -11,7 +11,7 @@ import {
   getSortedRowModel,
   SortingState,
 } from '@tanstack/react-table';
-import { ChevronUpIcon, ChevronDownIcon, LinkIcon, ClockIcon, TrashIcon, ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
+import { ChevronUpIcon, ChevronDownIcon, LinkIcon, ClockIcon, TrashIcon, ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon, CodeBracketIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
 import { useCrawlStore } from '@/lib/crawlStore/store';
 import { CrawlJob } from '@/lib/crawlStore/types';
 import StatusText from '@/components/result/status-text';
@@ -20,21 +20,21 @@ const columnHelper = createColumnHelper<CrawlJob>();
 
 export default function Results() {
   const router = useRouter();
-  const { 
-    jobs, 
-    isLoading, 
-    error, 
-    currentPage, 
-    pageSize, 
+  const {
+    jobs,
+    isLoading,
+    error,
+    currentPage,
+    pageSize,
     totalJobs,
-    setPage, 
-    deleteCrawlJob, 
+    setPage,
+    deleteCrawlJob,
     createCrawlJob,
     connectSSE
   } = useCrawlStore();
-  
+
   const [sorting, setSorting] = useState<SortingState>([]);
-  
+  const [searchTerm, setSearchTerm] = useState('');
   useEffect(() => {
     const initialize = async () => {
       try {
@@ -50,7 +50,7 @@ export default function Results() {
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this report?')) return;
-    
+
     try {
       await deleteCrawlJob(id);
     } catch (err) {
@@ -84,21 +84,21 @@ export default function Results() {
   const columns = useMemo(
     () => [
       columnHelper.accessor('title', {
-        header: 'Title',
-        cell: (info) => (
-          <div className="font-medium text-white truncate max-w-xs">
-            {info.getValue() || 'Untitled'}
-          </div>
-        ),
-      }),
-      columnHelper.accessor('url', {
-        header: 'URL',
-        cell: (info) => (
-          <div className="flex items-center gap-2 text-neutral-400 truncate max-w-xs">
-            <LinkIcon className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">{info.getValue()}</span>
-          </div>
-        ),
+        header: 'Project',
+        cell: (info) => {
+          const job = info.row.original;
+          return (
+            <div className="space-y-1">
+              <div className="font-medium text-white truncate max-w-xs">
+                {info.getValue() || 'Untitled'}
+              </div>
+              <div className="flex items-center gap-2 text-xs text-neutral-400 truncate max-w-xs">
+                <LinkIcon className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{job.url}</span>
+              </div>
+            </div>
+          );
+        },
       }),
       columnHelper.accessor('status', {
         header: 'Status',
@@ -109,41 +109,55 @@ export default function Results() {
           );
         },
       }),
-      columnHelper.accessor('createdAt', {
-        header: 'Created',
+      columnHelper.accessor('updatedAt', {
+        header: 'Updated',
         cell: (info) => (
-          <div className="flex items-center gap-2 text-neutral-300">
-            <ClockIcon className="h-3 w-3" />
+          <div className="flex items-center gap-2 text-neutral-300 text-sm">
+            <ClockIcon className="h-4 w-4" />
             <span>{new Date(info.getValue()).toLocaleString()}</span>
+          </div>
+        ),
+      }),
+      columnHelper.accessor('htmlVersion', {
+        header: 'HTML Version',
+        cell: (info) => (
+          <div className="flex items-center gap-2 text-neutral-300 text-sm">
+            <CodeBracketIcon className="h-3 w-3" />
+            <span className="font-mono text-xs bg-neutral-800 px-2 py-1 rounded">
+              {info.getValue() || 'Unknown'}
+            </span>
           </div>
         ),
       }),
       columnHelper.accessor('id', {
         header: 'Actions',
+        enableSorting: false,
         cell: (info) => {
           const job = info.row.original;
           return (
-            <div className="flex items-center gap-1">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDelete(info.getValue());
-                }}
-                className="flex items-center justify-center gap-1 rounded-full cursor-pointer border border-red-700 bg-transparent px-2 py-1 text-xs font-medium text-red-400 transition-colors hover:bg-red-800/20"
-              >
-                <TrashIcon className="h-3 w-3" />
-                Delete
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleRerun(job.url);
-                }}
-                className="flex items-center justify-center gap-1 rounded-full cursor-pointer border border-blue-700 bg-transparent px-2 py-1 text-xs font-medium text-blue-400 transition-colors hover:bg-blue-800/20"
-              >
-                <ArrowPathIcon className="h-3 w-3" />
-                Re-run
-              </button>
+            <div className="flex items-center justify-end">
+              <div className="flex items-center">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRerun(job.url);
+                  }}
+                  className="p-2 hover:bg-neutral-800 rounded text-neutral-400 hover:text-blue-500 transition-colors"
+                  title="Re-run"
+                >
+                  <ArrowPathIcon className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(info.getValue());
+                  }}
+                  className="p-2 hover:bg-neutral-800 rounded text-neutral-400 hover:text-red-400 transition-colors"
+                  title="Delete"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           );
         },
@@ -215,12 +229,26 @@ export default function Results() {
               </p>
             </motion.div>
           ) : (
+
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.6 }}
               className="space-y-4"
             >
+              <div className='mb-4 flex items-center justify-between'>
+                <label className="relative block w-full">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-2">
+                    <MagnifyingGlassIcon className="h-5 w-5 text-neutral-300" />
+                  </span>
+                    <span className="sr-only">Search</span>
+                    <input
+                      className="block w-full py-2 pr-3 pl-9 rounded-lg border border-neutral-700 bg-neutral-800/50 text-white placeholder:text-neutral-500 focus:border-white focus:outline-none focus:ring-2 focus:ring-white/20"
+                  placeholder="Search by title, URL, or HTML version..."
+                      type="text"
+                      name="search"
+                    /></label>
+              </div>
               <div className="rounded-lg border border-neutral-800 bg-neutral-900/30 backdrop-blur-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -234,11 +262,10 @@ export default function Results() {
                             >
                               {header.isPlaceholder ? null : (
                                 <div
-                                  className={`flex items-center gap-2 ${
-                                    header.column.getCanSort()
+                                  className={`flex items-center gap-2 ${header.column.getCanSort()
                                       ? 'cursor-pointer select-none hover:text-white'
                                       : ''
-                                  }`}
+                                    }`}
                                   onClick={header.column.getToggleSortingHandler()}
                                 >
                                   {flexRender(
@@ -248,18 +275,16 @@ export default function Results() {
                                   {header.column.getCanSort() && (
                                     <div className="flex flex-col">
                                       <ChevronUpIcon
-                                        className={`h-3 w-3 ${
-                                          header.column.getIsSorted() === 'asc'
+                                        className={`h-3 w-3 ${header.column.getIsSorted() === 'asc'
                                             ? 'text-white'
                                             : 'text-neutral-600'
-                                        }`}
+                                          }`}
                                       />
                                       <ChevronDownIcon
-                                        className={`h-3 w-3 -mt-1 ${
-                                          header.column.getIsSorted() === 'desc'
+                                        className={`h-3 w-3 -mt-1 ${header.column.getIsSorted() === 'desc'
                                             ? 'text-white'
                                             : 'text-neutral-600'
-                                        }`}
+                                          }`}
                                       />
                                     </div>
                                   )}
@@ -299,12 +324,12 @@ export default function Results() {
                   className="flex items-center justify-between rounded-lg border border-neutral-800 bg-neutral-900/30 px-6 py-4 backdrop-blur-sm"
                 >
                   <div className="text-sm text-neutral-400">
-                    Page {currentPage + 1} of {totalPages} 
+                    Page {currentPage + 1} of {totalPages}
                     <span className="ml-2">
                       ({currentPage * pageSize + 1}-{Math.min((currentPage + 1) * pageSize, totalJobs)} of {totalJobs})
                     </span>
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handlePrevPage}
@@ -314,7 +339,7 @@ export default function Results() {
                       <ChevronLeftIcon className="h-4 w-4" />
                       Previous
                     </button>
-                    
+
                     <button
                       onClick={handleNextPage}
                       disabled={!hasNextPage || isLoading}
