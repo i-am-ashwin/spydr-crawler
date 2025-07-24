@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -58,6 +59,14 @@ func (h *Handlers) ListCrawlJobs(ctx *gin.Context) {
 		db = db.Where("status = ?", status)
 	}
 
+	if search := ctx.Query("search"); search != "" {
+		searchPattern := "%" + search + "%"
+		db = db.Where(
+			"title LIKE ? OR url LIKE ? OR html_version LIKE ? OR status LIKE ?",
+			searchPattern, searchPattern, searchPattern, searchPattern,
+		)
+	}
+
 	limitStr := ctx.DefaultQuery("limit", "50")
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
@@ -72,13 +81,36 @@ func (h *Handlers) ListCrawlJobs(ctx *gin.Context) {
 		return
 	}
 
+	sortBy := ctx.DefaultQuery("sortBy", "created_at")
+	sortOrder := ctx.DefaultQuery("sortOrder", "desc")
+
+	validSortFields := map[string]string{
+		"title":       "title",
+		"status":      "status",
+		"updatedAt":   "updated_at",
+		"htmlVersion": "html_version",
+		"createdAt":   "created_at",
+		"url":         "url",
+	}
+
+	dbSortField, isValid := validSortFields[sortBy]
+	if !isValid {
+		dbSortField = "created_at"
+	}
+
+	if sortOrder != "asc" && sortOrder != "desc" {
+		sortOrder = "desc"
+	}
+
+	orderClause := dbSortField + " " + strings.ToUpper(sortOrder)
+
 	var total int64
 	if err := db.Model(&models.CrawlJob{}).Count(&total).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := db.Limit(limit).Offset(offset).Order("created_at DESC").Find(&jobs).Error; err != nil {
+	if err := db.Limit(limit).Offset(offset).Order(orderClause).Find(&jobs).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

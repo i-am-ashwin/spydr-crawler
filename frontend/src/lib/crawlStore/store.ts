@@ -23,6 +23,9 @@ export const useCrawlStore = create<CrawlStore>()(
       totalJobs: 0,
       currentPage: 0,
       pageSize: 10,
+      searchTerm: '',
+      sortBy: 'createdAt',
+      sortOrder: 'desc' as const,
 
       createCrawlJob: async (url: string) => {
         set({ isLoading: true, error: null });
@@ -118,7 +121,6 @@ export const useCrawlStore = create<CrawlStore>()(
         }
       },
 
-      // SSE Real-time Updates
       upsertJobFromSSE: (job: CrawlJob) => {
         set(state => {
           const existingIndex = state.jobs.findIndex(j => j.id === job.id);
@@ -138,18 +140,48 @@ export const useCrawlStore = create<CrawlStore>()(
       },
 
       setPage: async (page: number) => {
-        const { pageSize, listCrawlJobs } = get();
+        const { pageSize, searchTerm, sortBy, sortOrder, listCrawlJobs } = get();
         await listCrawlJobs({ 
           limit: pageSize, 
-          offset: page * pageSize 
+          offset: page * pageSize,
+          search: searchTerm || undefined,
+          sortBy,
+          sortOrder
         });
       },
 
       refreshCurrentPage: async () => {
-        const { currentPage, pageSize, listCrawlJobs } = get();
+        const { currentPage, pageSize, searchTerm, sortBy, sortOrder, listCrawlJobs } = get();
         await listCrawlJobs({ 
           limit: pageSize, 
-          offset: currentPage * pageSize 
+          offset: currentPage * pageSize,
+          search: searchTerm || undefined,
+          sortBy,
+          sortOrder
+        });
+      },
+
+      setSearchTerm: async (searchTerm: string) => {
+        set({ searchTerm, currentPage: 0 });
+        const { pageSize, sortBy, sortOrder, listCrawlJobs } = get();
+        await listCrawlJobs({ 
+          limit: pageSize, 
+          offset: 0,
+          search: searchTerm || undefined,
+          sortBy,
+          sortOrder
+        });
+      },
+
+      setSorting: async (sortBy: string, sortOrder: 'asc' | 'desc') => {
+        set({ sortBy, sortOrder, currentPage: 0 });
+        const { pageSize, searchTerm, listCrawlJobs } = get();
+        await listCrawlJobs({ 
+          limit: pageSize, 
+          offset: 0,
+          search: searchTerm || undefined,
+          sortBy,
+          sortOrder
         });
       },
 
