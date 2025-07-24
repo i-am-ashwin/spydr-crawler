@@ -1,0 +1,80 @@
+import { CrawlJob, PaginationParams, PaginatedResponse } from './types';
+
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
+
+export const apiCall = async <T>(
+  endpoint: string, 
+  options: RequestInit = {}
+): Promise<T> => {
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+    ...options,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  return response.json();
+};
+export const createCrawlJobApi = async (url: string): Promise<CrawlJob> => {
+  return apiCall<CrawlJob>('/crawl', {
+    method: 'POST',
+    body: JSON.stringify({ url }),
+  });
+};
+
+export const getCrawlJobApi = async (id: number): Promise<CrawlJob> => {
+  return apiCall<CrawlJob>(`/crawl/${id}`);
+};
+
+export const listCrawlJobsApi = async (params: PaginationParams = {}): Promise<PaginatedResponse<CrawlJob>> => {
+  const queryParams = new URLSearchParams();
+  if (params.limit) queryParams.set('limit', params.limit.toString());
+  if (params.offset) queryParams.set('offset', params.offset.toString());
+  if (params.status) queryParams.set('status', params.status);
+
+  // Try to get paginated response first, fallback to array if backend doesn't support it yet
+  try {
+    const response = await apiCall<PaginatedResponse<CrawlJob>>(`/crawl/list?${queryParams}`);
+    // If response has 'data' field, it's paginated
+    if (response && typeof response === 'object' && 'data' in response) {
+      return response;
+    }
+    // Otherwise, treat as array and create paginated response
+    const jobs = response as unknown as CrawlJob[];
+    return {
+      data: jobs,
+      total: jobs.length, // This is not accurate but works for now
+      limit: params.limit || 50,
+      offset: params.offset || 0,
+    };
+  } catch (error) {
+    // Fallback for old API format
+    const jobs = await apiCall<CrawlJob[]>(`/crawl/list?${queryParams}`);
+    return {
+      data: jobs,
+      total: jobs.length, // This is not accurate but works for now
+      limit: params.limit || 50,
+      offset: params.offset || 0,
+    };
+  }
+};
+
+export const stopCrawlJobApi = async (id: number): Promise<void> => {
+  return apiCall(`/crawl/${id}/stop`, {
+    method: 'POST',
+  });
+};
+
+export const deleteCrawlJobApi = async (id: number): Promise<void> => {
+  return apiCall(`/crawl/${id}`, {
+    method: 'DELETE',
+  });
+};
+
+export { API_BASE };
