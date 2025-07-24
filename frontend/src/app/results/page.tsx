@@ -28,15 +28,32 @@ export default function Results() {
     pageSize,
     totalJobs,
     searchTerm,
+    sortBy,
+    sortOrder,
     setPage,
     deleteCrawlJob,
     createCrawlJob,
     connectSSE,
-    setSearchTerm
+    setSearchTerm,
+    setSorting
   } = useCrawlStore();
 
-  const [sorting, setSorting] = useState<SortingState>([]);
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
+
+  const tableSorting: SortingState = useMemo(() => {
+    return sortBy ? [{ id: sortBy, desc: sortOrder === 'desc' }] : [];
+  }, [sortBy, sortOrder]);
+
+  const handleSortingChange = (updaterOrValue: SortingState | ((old: SortingState) => SortingState)) => {
+    const newSorting = typeof updaterOrValue === 'function' ? updaterOrValue(tableSorting) : updaterOrValue;
+    
+    if (newSorting.length === 0) {
+      setSorting('createdAt', 'desc');
+    } else {
+      const sort = newSorting[0];
+      setSorting(sort.id, sort.desc ? 'desc' : 'asc');
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -101,6 +118,7 @@ export default function Results() {
   const columns = useMemo(
     () => [
       columnHelper.accessor('title', {
+        id: 'title',
         header: 'Project',
         cell: (info) => {
           const job = info.row.original;
@@ -118,6 +136,7 @@ export default function Results() {
         },
       }),
       columnHelper.accessor('status', {
+        id: 'status',
         header: 'Status',
         cell: (info) => {
           const status = info.getValue();
@@ -127,6 +146,7 @@ export default function Results() {
         },
       }),
       columnHelper.accessor('updatedAt', {
+        id: 'updatedAt',
         header: 'Updated',
         cell: (info) => (
           <div className="flex items-center gap-2 text-neutral-300 text-sm">
@@ -136,6 +156,7 @@ export default function Results() {
         ),
       }),
       columnHelper.accessor('htmlVersion', {
+        id: 'htmlVersion',
         header: 'HTML Version',
         cell: (info) => (
           <div className="flex items-center gap-2 text-neutral-300 text-sm">
@@ -147,6 +168,7 @@ export default function Results() {
         ),
       }),
       columnHelper.accessor('id', {
+        id: 'actions',
         header: 'Actions',
         enableSorting: false,
         cell: (info) => {
@@ -187,11 +209,12 @@ export default function Results() {
     data: jobs,
     columns,
     state: {
-      sorting,
+      sorting: tableSorting,
     },
-    onSortingChange: setSorting,
+    onSortingChange: handleSortingChange,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    manualSorting: true, 
   });
 
   const handleRowClick = (job: CrawlJob) => {
