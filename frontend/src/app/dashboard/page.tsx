@@ -24,7 +24,6 @@ export default function Dashboard() {
       router.push(`/result/${job.id}`);
     } catch (error) {
       console.error('ERROR', error);
-    } finally {
       setIsSubmitting(false);
     }
   };
