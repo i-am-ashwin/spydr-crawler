@@ -3,8 +3,9 @@ package http
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -48,7 +49,6 @@ func (h *Handlers) CreateCrawlJob(ctx *gin.Context) {
 		return
 	}
 
-	log.Printf("Created crawl job %d for URL: %s", job.ID, job.URL)
 	ctx.JSON(201, job)
 }
 func (h *Handlers) ListCrawlJobs(ctx *gin.Context) {
@@ -259,4 +259,40 @@ func (h *Handlers) DeleteCrawlJob(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "Job deleted successfully"})
+}
+
+func (h *Handlers) GetScreenshot(ctx *gin.Context) {
+	jobID := ctx.Param("id")
+	id, err := strconv.Atoi(jobID)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid job ID"})
+		return
+	}
+
+	var job models.CrawlJob
+	if err := h.DB.First(&job, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Job not found"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if job.ScreenshotPath == "" {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "No screenshot available for this job"})
+		return
+	}
+
+	screenshotDir := os.Getenv("SCREENSHOT_DIR")
+	filePath := filepath.Join(screenshotDir, job.ScreenshotPath)
+
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Screenshot file not found"})
+		return
+	}
+	ctx.Header("Content-Type", "image/png")
+	ctx.Header("Cache-Control", "public, max-age=3600")
+
+	ctx.File(filePath)
 }
