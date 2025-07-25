@@ -62,6 +62,11 @@ export interface CrawlStore {
   stopCrawlJob: (id: number) => Promise<void>;
   deleteCrawlJob: (id: number) => Promise<void>;
   
+  // Bulk Actions
+  bulkDeleteCrawlJobs: (ids: number[]) => Promise<{ success: number[], failed: number[] }>;
+  bulkCreateCrawlJobs: (urls: string[]) => Promise<{ success: CrawlJob[], failed: string[] }>;
+  bulkStopCrawlJobs: (ids: number[]) => Promise<{ success: number[], failed: number[] }>;
+  
   // SSE update actions
   upsertJobFromSSE: (job: CrawlJob) => void;
   

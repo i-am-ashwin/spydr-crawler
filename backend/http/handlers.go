@@ -296,3 +296,123 @@ func (h *Handlers) GetScreenshot(ctx *gin.Context) {
 
 	ctx.File(filePath)
 }
+
+type bulkIDsRequest struct {
+	IDs []uint `json:"ids" binding:"required,min=1"`
+}
+
+type bulkURLsRequest struct {
+	URLs []string `json:"urls" binding:"required,min=1"`
+}
+
+type bulkResponse struct {
+	Success []interface{} `json:"success"`
+	Failed  []interface{} `json:"failed"`
+}
+
+func (h *Handlers) BulkDeleteCrawlJobs(ctx *gin.Context) {
+	var req bulkIDsRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var successIDs []interface{}
+	var failedIDs []interface{}
+
+	for _, id := range req.IDs {
+		var job models.CrawlJob
+		if err := h.DB.First(&job, id).Error; err != nil {
+			failedIDs = append(failedIDs, id)
+			continue
+		}
+
+		if job.Status == models.StatusRunning {
+			failedIDs = append(failedIDs, id)
+			continue
+		}
+
+		if err := h.DB.Delete(&job).Error; err != nil {
+			failedIDs = append(failedIDs, id)
+			continue
+		}
+
+		successIDs = append(successIDs, id)
+	}
+
+	ctx.JSON(http.StatusOK, bulkResponse{
+		Success: successIDs,
+		Failed:  failedIDs,
+	})
+}
+
+func (h *Handlers) BulkCreateCrawlJobs(ctx *gin.Context) {
+	var req bulkURLsRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var successJobs []interface{}
+	var failedURLs []interface{}
+
+	for _, url := range req.URLs {
+		job := models.CrawlJob{
+			URL:    url,
+			Status: models.StatusQueued,
+		}
+
+		if err := h.DB.Create(&job).Error; err != nil {
+			failedURLs = append(failedURLs, url)
+			continue
+		}
+
+		successJobs = append(successJobs, job)
+	}
+
+	ctx.JSON(http.StatusOK, bulkResponse{
+		Success: successJobs,
+		Failed:  failedURLs,
+	})
+}
+
+func (h *Handlers) BulkStopCrawlJobs(ctx *gin.Context) {
+	var req bulkIDsRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var successIDs []interface{}
+	var failedIDs []interface{}
+
+	for _, id := range req.IDs {
+		var job models.CrawlJob
+		if err := h.DB.First(&job, id).Error; err != nil {
+			failedIDs = append(failedIDs, id)
+			continue
+		}
+
+		if job.Status != models.StatusRunning && job.Status != models.StatusQueued {
+			failedIDs = append(failedIDs, id)
+			continue
+		}
+
+		if job.Status == models.StatusRunning {
+			h.WorkerPool.CancelJob(id)
+		}
+
+		job.Status = models.StatusCanceled
+		if err := h.DB.Save(&job).Error; err != nil {
+			failedIDs = append(failedIDs, id)
+			continue
+		}
+
+		successIDs = append(successIDs, id)
+	}
+
+	ctx.JSON(http.StatusOK, bulkResponse{
+		Success: successIDs,
+		Failed:  failedIDs,
+	})
+}
