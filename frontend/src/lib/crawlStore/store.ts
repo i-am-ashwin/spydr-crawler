@@ -9,7 +9,6 @@ import {
   deleteCrawlJobApi 
 } from './api';
 import { createSSEManager } from './sse';
-import { createSelectors, CrawlStoreSelectors } from './selectors';
 const sseManager = createSSEManager();
 
 export const useCrawlStore = create<CrawlStore>()(
@@ -224,12 +223,9 @@ export const useCrawlStore = create<CrawlStore>()(
   )
 );
 
-export const useCrawlStoreWithSelectors = (): CrawlStore & CrawlStoreSelectors => {
+export const useCrawlStoreWithSelectors = (): CrawlStore => {
   const store = useCrawlStore();
-  const selectors = createSelectors(store.jobs);
-  
   return {
     ...store,
-    ...selectors,
   };
 };
