@@ -31,6 +31,9 @@ func SetupRouter(db *gorm.DB, pool *worker.WorkerPool) *gin.Engine {
 		protected.POST("/crawl/:id/stop", handlers.StopCrawlJob)
 		protected.DELETE("/crawl/:id", handlers.DeleteCrawlJob)
 		protected.GET("/crawl/:id/screenshot", handlers.GetScreenshot)
+		protected.POST("/crawl/bulk/create", handlers.BulkCreateCrawlJobs)
+		protected.POST("/crawl/bulk/delete", handlers.BulkDeleteCrawlJobs)
+		protected.POST("/crawl/bulk/stop", handlers.BulkStopCrawlJobs)
 	}
 
 	return r

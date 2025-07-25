@@ -64,4 +64,25 @@ export const deleteCrawlJobApi = async (id: number): Promise<void> => {
   });
 };
 
+export const bulkDeleteCrawlJobsApi = async (ids: number[]): Promise<{ success: number[], failed: number[] }> => {
+  return apiCall<{ success: number[], failed: number[] }>('/crawl/bulk/delete', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  });
+};
+
+export const bulkCreateCrawlJobsApi = async (urls: string[]): Promise<{ success: CrawlJob[], failed: string[] }> => {
+  return apiCall<{ success: CrawlJob[], failed: string[] }>('/crawl/bulk/create', {
+    method: 'POST',
+    body: JSON.stringify({ urls }),
+  });
+};
+
+export const bulkStopCrawlJobsApi = async (ids: number[]): Promise<{ success: number[], failed: number[] }> => {
+  return apiCall<{ success: number[], failed: number[] }>('/crawl/bulk/stop', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  });
+};
+
 export { API_BASE };

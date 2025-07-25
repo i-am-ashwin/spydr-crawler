@@ -10,8 +10,9 @@ import {
   createColumnHelper,
   getSortedRowModel,
   SortingState,
+  RowSelectionState,
 } from '@tanstack/react-table';
-import { ChevronUpIcon, StopCircleIcon, ChevronDownIcon, LinkIcon, ClockIcon, TrashIcon, ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon, CodeBracketIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import { ChevronUpIcon, StopCircleIcon, ChevronDownIcon, LinkIcon, ClockIcon, TrashIcon, ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon, CodeBracketIcon, MagnifyingGlassIcon, XMarkIcon, CheckIcon } from '@heroicons/react/24/solid';
 import { useCrawlStore } from '@/lib/crawlStore/store';
 import { CrawlJob } from '@/lib/crawlStore/types';
 import StatusText from '@/components/result/status-text';
@@ -36,10 +37,14 @@ export default function Results() {
     createCrawlJob,
     stopCrawlJob,
     setSearchTerm,
-    setSorting
+    setSorting,
+    bulkDeleteCrawlJobs,
+    bulkCreateCrawlJobs,
+    bulkStopCrawlJobs
   } = useCrawlStore();
 
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
   const tableSorting: SortingState = useMemo(() => {
     return sortBy ? [{ id: sortBy, desc: sortOrder === 'desc' }] : [];
@@ -73,6 +78,7 @@ export default function Results() {
   useEffect(() => {
     const initialize = async () => {
         await setPage(0);
+        setRowSelection({});
     };
     initialize();
   }, [setPage]);
@@ -103,15 +109,88 @@ export default function Results() {
       toast.error('Failed to stop. Please try again.');
     }
   };
+
+  const handleBulkDelete = async () => {
+    const selectedRows = table.getSelectedRowModel().rows;
+    const selectedIds = selectedRows.map(row => row.original.id);
+    
+    if (!confirm(`Are you sure you want to delete ${selectedIds.length} selected item(s)?`)) return;
+
+    try {
+      const result = await bulkDeleteCrawlJobs(selectedIds);
+      
+      if (result.failed.length > 0) {
+        toast.error(`${result.failed.length} item(s) failed to delete. ${result.success.length} item(s) deleted successfully.`);
+      } else {
+        toast.success(`Successfully deleted ${result.success.length} item(s).`);
+      }
+      
+      setRowSelection({});
+    } catch (err) {
+      toast.error('Failed to delete items. Please try again.');
+    }
+  };
+
+  const handleBulkRerun = async () => {
+    const selectedRows = table.getSelectedRowModel().rows;
+    const selectedUrls = selectedRows.map(row => row.original.url);
+    
+    if (!confirm(`Are you sure you want to re-run ${selectedUrls.length} selected item(s)?`)) return;
+
+    try {
+      const result = await bulkCreateCrawlJobs(selectedUrls);
+      
+      if (result.failed.length > 0) {
+        toast.error(`${result.failed.length} item(s) failed to create. ${result.success.length} job(s) created successfully.`);
+      } else {
+        toast.success(`Successfully created ${result.success.length} new job(s).`);
+      }
+      
+      setRowSelection({});
+    } catch (err) {
+      toast.error('Failed to create jobs. Please try again.');
+    }
+  };
+
+  const handleBulkStop = async () => {
+    const selectedRows = table.getSelectedRowModel().rows;
+    const runnableJobs = selectedRows.filter(row => 
+      row.original.status === 'queued' || row.original.status === 'running'
+    );
+    
+    if (runnableJobs.length === 0) {
+      toast.error('No running or queued jobs selected.');
+      return;
+    }
+    
+    if (!confirm(`Are you sure you want to stop ${runnableJobs.length} selected item(s)?`)) return;
+
+    try {
+      const runnableIds = runnableJobs.map(row => row.original.id);
+      const result = await bulkStopCrawlJobs(runnableIds);
+      
+      if (result.failed.length > 0) {
+        toast.error(`${result.failed.length} item(s) failed to stop. ${result.success.length} job(s) stopped successfully.`);
+      } else {
+        toast.success(`Successfully stopped ${result.success.length} job(s).`);
+      }
+      
+      setRowSelection({});
+    } catch (err) {
+      toast.error('Failed to stop jobs. Please try again.');
+    }
+  };
   const handleNextPage = async () => {
     if (currentPage < Math.ceil(totalJobs / pageSize) - 1) {
       await setPage(currentPage + 1);
+      setRowSelection({}); 
     }
   };
 
   const handlePrevPage = async () => {
     if (currentPage > 0) {
       await setPage(currentPage - 1);
+      setRowSelection({}); 
     }
   };
 
@@ -120,13 +199,40 @@ export default function Results() {
   const hasPrevPage = currentPage > 0;
   const columns = useMemo(
     () => [
+      columnHelper.display({
+        id: 'select',
+        header: ({ table }) => (
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              className="h-4 w-4 border-neutral-600  bg-neutral-800 accent-blue-600 focus:ring-blue-500 focus:ring-offset-0"
+              checked={table.getIsAllRowsSelected()}
+              onChange={table.getToggleAllRowsSelectedHandler()}
+            />
+          </div>
+        ),
+        cell: ({ row }) => (
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              className="h-4 w-4 apperance-auto border-neutral-600 bg-neutral-800 accent-blue-600 focus:ring-blue-500 focus:ring-offset-0"
+              checked={row.getIsSelected()}
+              onChange={row.getToggleSelectedHandler()}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        ),
+      }),
       columnHelper.accessor('title', {
         id: 'title',
         header: 'Project',
         cell: (info) => {
           const job = info.row.original;
           return (
-            <div className="space-y-1">
+            <div 
+              className="space-y-1 cursor-pointer hover:text-blue-400 transition-colors"
+              onClick={() => router.push(`/result/${job.id}`)}
+            >
               <div className="font-medium text-white truncate max-w-xs">
                 {info.getValue() || 'Untitled'}
               </div>
@@ -222,16 +328,16 @@ export default function Results() {
     columns,
     state: {
       sorting: tableSorting,
+      rowSelection,
     },
     onSortingChange: handleSortingChange,
+    onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     manualSorting: true,
+    enableRowSelection: true,
+    getRowId: (row) => row.id.toString(),
   });
-
-  const handleRowClick = (job: CrawlJob) => {
-    router.push(`/result/${job.id}`);
-  };
 
   if (error) {
     return (
@@ -289,6 +395,57 @@ export default function Results() {
                 disabled={isLoading}
               /></label>
           </div>
+
+          {Object.keys(rowSelection).length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-4 flex items-center justify-between rounded-lg border border-blue-600/50 bg-blue-900/20 px-4 py-3 backdrop-blur-sm"
+            >
+              <div className="flex items-center gap-3">
+                <CheckIcon className="h-5 w-5 text-blue-400" />
+                <span className="text-sm font-medium text-blue-300">
+                  {Object.keys(rowSelection).length} item(s) selected
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {table.getSelectedRowModel().rows.some(row => 
+                  row.original.status === 'queued' || row.original.status === 'running'
+                ) && (
+                  <button
+                    onClick={handleBulkStop}
+                    className="flex items-center gap-2 rounded-md border border-orange-600 bg-transparent px-3 py-1.5 text-sm font-medium text-orange-400 transition-colors hover:bg-orange-950/20"
+                  >
+                    <StopCircleIcon className="h-4 w-4" />
+                    Stop Selected
+                  </button>
+                )}
+                
+                <button
+                  onClick={handleBulkRerun}
+                  className="flex items-center gap-2 rounded-md bg-white px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-neutral-100"
+                >
+                  <ArrowPathIcon className="h-4 w-4" />
+                  Re-run Selected
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  className="flex items-center gap-2 rounded-md border border-red-600 bg-transparent px-3 py-1.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-950/20"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                  Delete Selected
+                </button>
+                <button
+                  onClick={() => setRowSelection({})}
+                  className="rounded-md border border-neutral-700 bg-transparent px-3 py-1.5 text-sm font-medium text-neutral-400 transition-colors hover:bg-neutral-800"
+                >
+                  Clear Selection
+                </button>
+              </div>
+            </motion.div>
+          )}
+
           {jobs.length === 0 && !isLoading ? (
             <motion.div
               initial={{ opacity: 0 }}
@@ -368,8 +525,7 @@ export default function Results() {
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: index * 0.05, duration: 0.3 }}
-                          onClick={() => handleRowClick(row.original)}
-                          className="cursor-pointer border-b border-neutral-800 transition-colors hover:bg-neutral-800/30"
+                          className="border-b border-neutral-800 transition-colors hover:bg-neutral-800/30"
                         >
                           {row.getVisibleCells().map((cell) => (
                             <td key={cell.id} className="px-6 py-4">

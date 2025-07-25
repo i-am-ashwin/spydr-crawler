@@ -6,7 +6,10 @@ import {
   getCrawlJobApi, 
   listCrawlJobsApi, 
   stopCrawlJobApi, 
-  deleteCrawlJobApi 
+  deleteCrawlJobApi,
+  bulkDeleteCrawlJobsApi,
+  bulkCreateCrawlJobsApi,
+  bulkStopCrawlJobsApi
 } from './api';
 import { createSSEManager } from './sse';
 const sseManager = createSSEManager();
@@ -116,6 +119,66 @@ export const useCrawlStore = create<CrawlStore>()(
             jobs: state.jobs.filter(job => job.id !== id),
             totalJobs: Math.max(0, state.totalJobs - 1),
           }));
+        } catch (error) {
+          const apiError: ApiError = { message: (error as Error).message };
+          set({ error: apiError });
+          throw error;
+        }
+      },
+
+      bulkDeleteCrawlJobs: async (ids: number[]) => {
+        set({ error: null });
+        
+        try {
+          const result = await bulkDeleteCrawlJobsApi(ids);
+          
+          set(state => ({
+            jobs: state.jobs.filter(job => !result.success.includes(job.id)),
+            totalJobs: Math.max(0, state.totalJobs - result.success.length),
+          }));
+
+          return result;
+        } catch (error) {
+          const apiError: ApiError = { message: (error as Error).message };
+          set({ error: apiError });
+          throw error;
+        }
+      },
+
+      bulkCreateCrawlJobs: async (urls: string[]) => {
+        set({ error: null });
+        
+        try {
+          const result = await bulkCreateCrawlJobsApi(urls);
+          
+          set(state => ({
+            jobs: [...result.success, ...state.jobs],
+            totalJobs: state.totalJobs + result.success.length,
+          }));
+
+          return result;
+        } catch (error) {
+          const apiError: ApiError = { message: (error as Error).message };
+          set({ error: apiError });
+          throw error;
+        }
+      },
+
+      bulkStopCrawlJobs: async (ids: number[]) => {
+        set({ error: null });
+        
+        try {
+          const result = await bulkStopCrawlJobsApi(ids);
+          
+          set(state => ({
+            jobs: state.jobs.map(job => 
+              result.success.includes(job.id)
+                ? { ...job, status: 'canceled' as const }
+                : job
+            ),
+          }));
+
+          return result;
         } catch (error) {
           const apiError: ApiError = { message: (error as Error).message };
           set({ error: apiError });
