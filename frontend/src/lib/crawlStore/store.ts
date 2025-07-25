@@ -9,7 +9,6 @@ import {
   deleteCrawlJobApi 
 } from './api';
 import { createSSEManager } from './sse';
-import { createSelectors, CrawlStoreSelectors } from './selectors';
 const sseManager = createSSEManager();
 
 export const useCrawlStore = create<CrawlStore>()(
@@ -55,7 +54,10 @@ export const useCrawlStore = create<CrawlStore>()(
         
         try {
           const job = await getCrawlJobApi(id);
-          set({ isLoading: false });
+          set(state => ({
+            jobs: [job, ...state.jobs.filter(j => j.id !== id)], 
+            isLoading: false
+          }));
           return job;
         } catch (error) {
           const apiError: ApiError = { message: (error as Error).message };
@@ -221,12 +223,9 @@ export const useCrawlStore = create<CrawlStore>()(
   )
 );
 
-export const useCrawlStoreWithSelectors = (): CrawlStore & CrawlStoreSelectors => {
+export const useCrawlStoreWithSelectors = (): CrawlStore => {
   const store = useCrawlStore();
-  const selectors = createSelectors(store.jobs);
-  
   return {
     ...store,
-    ...selectors,
   };
 };

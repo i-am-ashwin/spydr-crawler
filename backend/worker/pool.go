@@ -31,7 +31,6 @@ func (pool *WorkerPool) Start() {
 	for i := 0; i < workersCount; i++ {
 		go pool.worker(i)
 	}
-	log.Printf("Started %d workers", workersCount)
 }
 
 func (pool *WorkerPool) Stop() {
@@ -54,12 +53,9 @@ func (pool *WorkerPool) CancelJob(jobID uint) bool {
 }
 
 func (pool *WorkerPool) worker(id int) {
-	log.Printf("Worker %d started", id)
-
 	for {
 		select {
 		case <-pool.stopChan:
-			log.Printf("Worker %d stopped", id)
 			return
 		default:
 			pool.processNextJob(id)
@@ -72,27 +68,42 @@ func (pool *WorkerPool) processNextJob(workerID int) {
 	var job models.CrawlJob
 
 	tx := pool.db.Begin()
-	err := tx.Where("status = ?", models.StatusQueued).
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	err := tx.Set("gorm:query_option", "FOR UPDATE SKIP LOCKED").
+		Where("status = ?", models.StatusQueued).
 		Order("created_at ASC").
 		First(&job).Error
 
 	if err != nil {
 		tx.Rollback()
 		if err != gorm.ErrRecordNotFound {
-			log.Printf("Worker %d: Error finding job: %v", workerID, err)
+			log.Printf("Worker %d: record not found %v", workerID, err)
 		}
 		return
 	}
 
-	job.Status = models.StatusRunning
-	if err := tx.Save(&job).Error; err != nil {
+	result := tx.Model(&job).Update("status", models.StatusRunning)
+	if result.Error != nil {
 		tx.Rollback()
-		log.Printf("Worker %d: Error updating job status: %v", workerID, err)
+		log.Printf("Worker %d: Error job not updated: %v", workerID, result.Error)
 		return
 	}
 
-	tx.Commit()
-	log.Printf("Worker %d: Processing job %d (%s)", workerID, job.ID, job.URL)
+	if result.RowsAffected != 1 {
+		tx.Rollback()
+		log.Printf("Worker %d: multiple rows error", workerID, result.RowsAffected)
+		return
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		log.Printf("Worker %d: error race condition in commit: %v", workerID, err)
+		return
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -106,7 +117,7 @@ func (pool *WorkerPool) processNextJob(workerID int) {
 		pool.activeJobsMutex.Unlock()
 	}()
 
-	result, err := pool.crawl(ctx, job.URL)
+	crawlResult, err := pool.crawl(ctx, job.URL)
 
 	if ctx.Err() != nil {
 		job.Status = models.StatusCanceled
@@ -116,24 +127,25 @@ func (pool *WorkerPool) processNextJob(workerID int) {
 		job.ErrorMessage = err.Error()
 	} else {
 		job.Status = models.StatusDone
-		job.Title = result.Title
-		job.H1 = result.H1
-		job.H2 = result.H2
-		job.H3 = result.H3
-		job.H4 = result.H4
-		job.H5 = result.H5
-		job.H6 = result.H6
-		job.InternalLinks = result.InternalLinks
-		job.ExternalLinks = result.ExternalLinks
-		job.InaccessibleLinks = result.BrokenLinks
-		job.HasLoginForm = result.HasLoginForm
-		job.HTMLVersion = result.HTMLVersion
+		job.Title = crawlResult.Title
+		job.H1 = crawlResult.H1
+		job.H2 = crawlResult.H2
+		job.H3 = crawlResult.H3
+		job.H4 = crawlResult.H4
+		job.H5 = crawlResult.H5
+		job.H6 = crawlResult.H6
+		job.InternalLinks = crawlResult.InternalLinks
+		job.ExternalLinks = crawlResult.ExternalLinks
+		job.InaccessibleLinks = crawlResult.BrokenLinks
+		job.HasLoginForm = crawlResult.HasLoginForm
+		job.HTMLVersion = crawlResult.HTMLVersion
+		job.ScreenshotPath = crawlResult.ScreenshotPath
 	}
 
 	if err := pool.db.Save(&job).Error; err != nil {
-		log.Printf("Worker %d: Error saving job results: %v", workerID, err)
+		log.Printf("Worker %d: error saving job: %v", workerID, err)
 	} else {
-		log.Printf("Worker %d: Completed job %d", workerID, job.ID)
+		log.Printf("Worker %d: job completed %d", workerID, job.ID)
 	}
 }
 

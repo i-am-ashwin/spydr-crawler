@@ -37,7 +37,6 @@ export default function Login() {
       const redirectPath = searchParams.get('redirect') || '/dashboard';
       router.push(redirectPath);
     } catch (error) {
-      console.error('Login failed:', error);
       setError(error instanceof Error ? error.message : 'Login failed');
     }
   };

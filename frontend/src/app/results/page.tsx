@@ -11,10 +11,11 @@ import {
   getSortedRowModel,
   SortingState,
 } from '@tanstack/react-table';
-import { ChevronUpIcon, ChevronDownIcon, LinkIcon, ClockIcon, TrashIcon, ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon, CodeBracketIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import { ChevronUpIcon, StopCircleIcon, ChevronDownIcon, LinkIcon, ClockIcon, TrashIcon, ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon, CodeBracketIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/solid';
 import { useCrawlStore } from '@/lib/crawlStore/store';
 import { CrawlJob } from '@/lib/crawlStore/types';
 import StatusText from '@/components/result/status-text';
+import toast from 'react-hot-toast';
 
 const columnHelper = createColumnHelper<CrawlJob>();
 
@@ -33,7 +34,7 @@ export default function Results() {
     setPage,
     deleteCrawlJob,
     createCrawlJob,
-    connectSSE,
+    stopCrawlJob,
     setSearchTerm,
     setSorting
   } = useCrawlStore();
@@ -46,7 +47,7 @@ export default function Results() {
 
   const handleSortingChange = (updaterOrValue: SortingState | ((old: SortingState) => SortingState)) => {
     const newSorting = typeof updaterOrValue === 'function' ? updaterOrValue(tableSorting) : updaterOrValue;
-    
+
     if (newSorting.length === 0) {
       setSorting('createdAt', 'desc');
     } else {
@@ -71,16 +72,10 @@ export default function Results() {
 
   useEffect(() => {
     const initialize = async () => {
-      try {
         await setPage(0);
-        connectSSE();
-      } catch (err) {
-        console.error('Failed to initialize:', err);
-      }
     };
-
     initialize();
-  }, [setPage, connectSSE]);
+  }, [setPage]);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this report?')) return;
@@ -88,18 +83,26 @@ export default function Results() {
     try {
       await deleteCrawlJob(id);
     } catch (err) {
-      console.error('Delete failed:', err);
+      toast.error('Failed to delete. Please try again.');
     }
   };
 
   const handleRerun = async (url: string) => {
     try {
       await createCrawlJob(url);
+      toast.success('Successfully created a new job.');
     } catch (err) {
-      console.error('Rerun failed:', err);
+      toast.error('Failed to rerun. Please try again.');
     }
   };
-
+  const handleStop = async (id: number) => {
+    try {
+      await stopCrawlJob(id);
+      toast.success('Successfully stopped the job.');
+    } catch (err) {
+      toast.error('Failed to stop. Please try again.');
+    }
+  };
   const handleNextPage = async () => {
     if (currentPage < Math.ceil(totalJobs / pageSize) - 1) {
       await setPage(currentPage + 1);
@@ -176,7 +179,16 @@ export default function Results() {
           return (
             <div className="flex items-center justify-end">
               <div className="flex items-center">
-                <button
+                {(job.status === 'queued' || job.status == 'running') ? (<button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStop(job.id);
+                  }}
+                  className="p-2 hover:bg-neutral-800 rounded text-neutral-400 hover:text-red-500 transition-colors"
+                  title="Stop"
+                >
+                  <StopCircleIcon className="h-4 w-4" />
+                </button>) : (<button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleRerun(job.url);
@@ -185,7 +197,7 @@ export default function Results() {
                   title="Re-run"
                 >
                   <ArrowPathIcon className="h-4 w-4" />
-                </button>
+                </button>)}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -214,7 +226,7 @@ export default function Results() {
     onSortingChange: handleSortingChange,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    manualSorting: true, 
+    manualSorting: true,
   });
 
   const handleRowClick = (job: CrawlJob) => {

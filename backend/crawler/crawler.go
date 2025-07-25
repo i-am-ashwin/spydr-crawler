@@ -13,18 +13,19 @@ import (
 )
 
 type Result struct {
-	Title         string
-	H1            int
-	H2            int
-	H3            int
-	H4            int
-	H5            int
-	H6            int
-	InternalLinks int
-	ExternalLinks int
-	BrokenLinks   int
-	HasLoginForm  bool
-	HTMLVersion   string
+	Title          string
+	H1             int
+	H2             int
+	H3             int
+	H4             int
+	H5             int
+	H6             int
+	InternalLinks  int
+	ExternalLinks  int
+	BrokenLinks    int
+	HasLoginForm   bool
+	HTMLVersion    string
+	ScreenshotPath string
 }
 
 func Crawl(targetURL string) (Result, error) {
@@ -37,9 +38,12 @@ func Crawl(targetURL string) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-
+	screenshotPath, err := TakeScreenshot(targetURL)
+	if err != nil {
+		return Result{}, err
+	}
 	result := extractPageInfo(node)
-
+	result.ScreenshotPath = screenshotPath
 	links := extractLinks(node)
 	analyzeLinkMetrics(&result, links, targetURL)
 	result.HTMLVersion = detectHTMLVersion(htmlContent)

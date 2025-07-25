@@ -28,6 +28,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth();
   }, []);
 
+  const clearAuthData = () => {
+    localStorage.removeItem('auth-token');
+    document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+    setUser(null);
+  };
+
+  const setAuthData = (token: string, fallbackUsername?: string) => {
+    localStorage.setItem('auth-token', token);
+    document.cookie = `auth-token=${token}; path=/; max-age=${7 * 24 * 60 * 60}`; // 7 days
+    
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      setUser({
+        id: payload.sub,
+        username: payload.username,
+      });
+    } catch (decodeError) {
+      console.error('Failed to decode token:', decodeError);
+      if (fallbackUsername) {
+        setUser({
+          id: fallbackUsername,
+          username: fallbackUsername,
+        });
+      } else {
+        clearAuthData();
+        throw new Error('Invalid token format');
+      }
+    }
+  };
+
   const checkAuth = async () => {
     try {
       const token = localStorage.getItem('auth-token');
@@ -35,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
         return;
       }
+
       const response = await fetch(`${API_BASE}/api/crawl/list?limit=1`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -42,26 +73,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (response.ok) {
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          setUser({
-            id: payload.sub,
-            username: payload.username,
-          });
-          document.cookie = `auth-token=${token}; path=/; max-age=${7 * 24 * 60 * 60}`; // 7 days
-        } catch (decodeError) {
-          console.error('Failed to decode token:', decodeError);
-          localStorage.removeItem('auth-token');
-          document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-        }
+        setAuthData(token);
       } else {
-        localStorage.removeItem('auth-token');
-        document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+        clearAuthData();
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      localStorage.removeItem('auth-token');
-      document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+      clearAuthData();
     } finally {
       setIsLoading(false);
     }
@@ -83,31 +101,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(data.error || 'Login failed');
       }
 
-      localStorage.setItem('auth-token', data.token);
-      document.cookie = `auth-token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}`;
-      
-      try {
-        const payload = JSON.parse(atob(data.token.split('.')[1]));
-        setUser({
-          id: payload.sub,
-          username: payload.username,
-        });
-      } catch (decodeError) {
-        console.error('Failed to decode token:', decodeError);
-        setUser({
-          id: username,
-          username: username,
-        });
-      }
+      setAuthData(data.token, username);
     } catch (error) {
       throw error;
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('auth-token');
-    document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-    setUser(null);
+    clearAuthData();
     router.push('/login');
   };
 
@@ -125,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('Context Error');
   }
   return context;
 }
