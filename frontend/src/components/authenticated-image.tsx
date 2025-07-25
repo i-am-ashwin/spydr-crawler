@@ -47,7 +47,6 @@ export default function AuthenticatedImage({
         const imageUrl = URL.createObjectURL(blob);
         setImageSrc(imageUrl);
       } catch (error) {
-        console.error('Error fetching image:', error);
         setImageSrc(fallbackSrc);
       } finally {
         setIsLoading(false);
