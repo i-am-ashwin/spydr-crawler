@@ -46,7 +46,7 @@ export default function AuthenticatedImage({
         const blob = await response.blob();
         const imageUrl = URL.createObjectURL(blob);
         setImageSrc(imageUrl);
-      } catch (error) {
+      } catch {
         setImageSrc(fallbackSrc);
       } finally {
         setIsLoading(false);
@@ -60,7 +60,7 @@ export default function AuthenticatedImage({
         URL.revokeObjectURL(imageSrc);
       }
     };
-  }, [src, fallbackSrc]);
+  }, [src, fallbackSrc, imageSrc]);
 
   if (isLoading) {
     return (

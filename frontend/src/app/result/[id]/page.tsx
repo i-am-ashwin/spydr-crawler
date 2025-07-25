@@ -19,13 +19,11 @@ export default function ResultPage() {
     const { getCrawlJob, deleteCrawlJob, createCrawlJob, jobs } = useCrawlStore();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const result = jobs.find(job => job.id === id);
     useEffect(() => {
         const loadJob = async () => {
             try {
                 setIsLoading(true);
-                setErrorMessage('Please wait, loading analysis...');
                 await getCrawlJob(id);
             } catch (err) {
                 setError((err as Error).message);

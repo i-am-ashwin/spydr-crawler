@@ -54,7 +54,7 @@ export const createSSEManager = (): SSEManager => {
         onclose() {
           onConnectionChange(false);
         }
-      }).catch((error) => {
+      }).catch(() => {
         onConnectionChange(false);
       });
 

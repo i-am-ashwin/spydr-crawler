@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
@@ -83,32 +83,32 @@ export default function Results() {
     initialize();
   }, [setPage]);
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = useCallback(async (id: number) => {
     if (!confirm('Are you sure you want to delete this report?')) return;
 
     try {
       await deleteCrawlJob(id);
-    } catch (err) {
+    } catch {
       toast.error('Failed to delete. Please try again.');
     }
-  };
+  }, [deleteCrawlJob]);
 
-  const handleRerun = async (url: string) => {
+  const handleRerun = useCallback(async (url: string) => {
     try {
       await createCrawlJob(url);
       toast.success('Successfully created a new job.');
-    } catch (err) {
+    } catch {
       toast.error('Failed to rerun. Please try again.');
     }
-  };
-  const handleStop = async (id: number) => {
+  }, [createCrawlJob]);
+  const handleStop = useCallback(async (id: number) => {
     try {
       await stopCrawlJob(id);
       toast.success('Successfully stopped the job.');
-    } catch (err) {
+    } catch {
       toast.error('Failed to stop. Please try again.');
     }
-  };
+  }, [stopCrawlJob]);
 
   const handleBulkDelete = async () => {
     const selectedRows = table.getSelectedRowModel().rows;
@@ -126,7 +126,7 @@ export default function Results() {
       }
       
       setRowSelection({});
-    } catch (err) {
+    } catch {
       toast.error('Failed to delete items. Please try again.');
     }
   };
@@ -147,7 +147,7 @@ export default function Results() {
       }
       
       setRowSelection({});
-    } catch (err) {
+    } catch {
       toast.error('Failed to create jobs. Please try again.');
     }
   };
@@ -176,7 +176,7 @@ export default function Results() {
       }
       
       setRowSelection({});
-    } catch (err) {
+    } catch {
       toast.error('Failed to stop jobs. Please try again.');
     }
   };
@@ -320,7 +320,7 @@ export default function Results() {
         },
       }),
     ],
-    [handleDelete, handleRerun]
+    [handleDelete, handleRerun, handleStop, router]
   );
 
   const table = useReactTable({
@@ -364,7 +364,7 @@ export default function Results() {
             <h1 className="mb-2 text-3xl font-bold">Analysis Results</h1>
             <p className="text-neutral-400">
               {totalJobs} {totalJobs === 1 ? 'result' : 'results'} found
-              {searchTerm && <span className="ml-1">for "{searchTerm}"</span>}
+              {searchTerm && <span className="ml-1">for &quot;{searchTerm}&quot;</span>}
               {isLoading && <span className="ml-2 text-blue-400">(Loading...)</span>}
             </p>
           </div>

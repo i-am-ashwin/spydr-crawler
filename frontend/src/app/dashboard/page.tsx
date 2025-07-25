@@ -23,7 +23,7 @@ export default function Dashboard() {
         throw new Error();
       }
       router.push(`/result/${job.id}`);
-    } catch (error) {
+    } catch {
       toast.error('Failed to create. Please try again.');
       setIsSubmitting(false);
     }

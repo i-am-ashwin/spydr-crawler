@@ -1,5 +1,5 @@
 import { CrawlJobStatus } from '@/lib/crawlStore/types';
-import { PlayIcon, LinkIcon, ClockIcon, CheckCircleIcon, XCircleIcon, GlobeEuropeAfricaIcon, CalendarIcon, ArrowPathIcon } from '@heroicons/react/24/solid'
+import { ClockIcon, CheckCircleIcon, XCircleIcon, ArrowPathIcon } from '@heroicons/react/24/solid'
 import { motion } from 'motion/react';
 
 
