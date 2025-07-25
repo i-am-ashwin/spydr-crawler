@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLongLeftIcon, LinkIcon, TrashIcon, GlobeEuropeAfricaIcon, CalendarIcon } from '@heroicons/react/24/solid'
+import { ArrowLongLeftIcon, LinkIcon, TrashIcon, GlobeEuropeAfricaIcon, CalendarIcon, ArrowPathIcon, StopCircleIcon } from '@heroicons/react/24/solid'
 import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import HeaderIcon from '@/components/result/header-icon';
@@ -15,15 +15,17 @@ export default function ResultPage() {
     const params = useParams();
     const router = useRouter();
     const id = parseInt(params.id as string);
-    
+
     const { getCrawlJob, deleteCrawlJob, createCrawlJob, jobs } = useCrawlStore();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const result = jobs.find(job => job.id === id);
     useEffect(() => {
         const loadJob = async () => {
             try {
                 setIsLoading(true);
+                setErrorMessage('Please wait, loading analysis...');
                 await getCrawlJob(id);
             } catch (err) {
                 setError((err as Error).message);
@@ -37,7 +39,7 @@ export default function ResultPage() {
 
     const handleDelete = async () => {
         if (!confirm('Are you sure you want to delete this analysis?')) return;
-        
+
         try {
             await deleteCrawlJob(id);
             router.push('/results');
@@ -48,9 +50,18 @@ export default function ResultPage() {
 
     const handleRerun = async () => {
         if (!result?.url) return;
-        
+
         try {
             await createCrawlJob(result.url);
+            router.push('/results');
+        } catch (err) {
+            setError((err as Error).message);
+        }
+    };
+    const handleStop = async () => {
+        if (!result) return;
+        try {
+            await useCrawlStore.getState().stopCrawlJob(result.id);
             router.push('/results');
         } catch (err) {
             setError((err as Error).message);
@@ -76,7 +87,7 @@ export default function ResultPage() {
             </div>
         );
     }
-    
+
     if (isLoading || !result) {
         return (
             <div >
@@ -138,7 +149,15 @@ export default function ResultPage() {
                             </div>
                         </div>
                     </div>
-
+            {result.errorMessage && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-red-400 text-sm mb-4"
+              >
+                {result.errorMessage}
+              </motion.div>
+            )}
                     <div className="grid gap-6 md:grid-cols-2">
                         <motion.div
                             initial={{ opacity: 0, x: -20 }}
@@ -147,8 +166,8 @@ export default function ResultPage() {
                             className="space-y-6"
                         >
                             <AuthenticatedImage
-                                src={result.screenshotPath 
-                                    ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/crawl/${result.id}/screenshot` 
+                                src={result.screenshotPath
+                                    ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/crawl/${result.id}/screenshot`
                                     : "/default-image.jpg"
                                 }
                                 alt="Website Screenshot"
@@ -185,28 +204,45 @@ export default function ResultPage() {
                                 </div>
                             </div>
                             <div className="rounded-lg border border-neutral-800 bg-neutral-900/30 p-6 backdrop-blur-sm">
-                                <h2 className="mb-4 text-xl font-semibold">Actions</h2>
-                                <div className="space-y-3">
+                                <h2 className="mb-6 text-lg font-medium text-neutral-200">Actions</h2>
+                                <div className="space-y-2">
+                      { (result.status === 'queued' || result.status == 'running' ) ?  (
+                                    <button
+                                        onClick={handleStop}
+                                        className="flex w-full items-center justify-center gap-2 rounded-md border border-neutral-700 bg-transparent px-4 py-2.5 text-sm font-medium text-neutral-300 transition-all duration-200 hover:border-red-600 hover:bg-red-950/20 hover:text-red-400 active:scale-[0.98] cursor-pointer"
+                                    >
+                                        <StopCircleIcon className="h-4 w-4" />
+                                        Stop
+                                    </button>) : ( <button
+                                        onClick={handleRerun}
+                                        className="flex w-full items-center justify-center gap-2 rounded-md bg-white px-4 py-2.5 text-sm font-medium text-black transition-all duration-200 hover:bg-neutral-100 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                                    >
+                                        <ArrowPathIcon className="h-4 w-4" />
+
+                                        Run Again
+                                    </button> )
+                                    }
+
                                     <button
                                         onClick={handleDelete}
-                                        className="flex w-full items-center justify-center gap-2 rounded-full border border-red-700 bg-transparent px-4 py-3 font-medium text-red-400 transition-colors hover:bg-red-800/20 cursor-pointer"
+                                        className="flex w-full items-center justify-center gap-2 rounded-md border border-neutral-700 bg-transparent px-4 py-2.5 text-sm font-medium text-neutral-300 transition-all duration-200 hover:border-red-600 hover:bg-red-950/20 hover:text-red-400 active:scale-[0.98] cursor-pointer"
                                     >
                                         <TrashIcon className="h-4 w-4" />
                                         Delete Analysis
                                     </button>
+                                </div>
 
-                                    <button
-                                        onClick={handleRerun}
-                                        className="flex w-full items-center justify-center gap-2 rounded-full bg-white px-4 py-3 font-medium text-black transition-colors hover:bg-neutral-100 cursor-pointer"
-                                    >
-                                        Re-run Analysis
-                                    </button>
+                                <div className="mt-6 pt-4 border-t border-neutral-800">
+                                    <div className="flex items-center gap-2 text-xs text-neutral-500">
+                                        <GlobeEuropeAfricaIcon className="h-4 w-4" />
+                                        <span>Analysis ID: {result.id}</span>
+                                    </div>
                                 </div>
                             </div>
                         </motion.div>
                     </div>
 
-                    <motion.div
+                    {result.status === 'done' && <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.6, duration: 0.6 }}
@@ -256,7 +292,7 @@ export default function ResultPage() {
                                 </div>
                             </div>
                         </div>
-                    </motion.div>
+                    </motion.div>}
                 </motion.div>
             </div>
         </div>

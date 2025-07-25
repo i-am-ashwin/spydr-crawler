@@ -33,10 +33,6 @@ export default function AuthenticatedImage({
 
       try {
         const token = localStorage.getItem('auth-token');
-        if (!token) {
-          throw new Error('No auth token');
-        }
-
         const response = await fetch(src, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -44,14 +40,14 @@ export default function AuthenticatedImage({
         });
 
         if (!response.ok) {
-          throw new Error('Failed to load image');
+          throw new Error('Error fetching image');
         }
 
         const blob = await response.blob();
         const imageUrl = URL.createObjectURL(blob);
         setImageSrc(imageUrl);
       } catch (error) {
-        console.error('Failed to load authenticated image:', error);
+        console.error('Error fetching image:', error);
         setImageSrc(fallbackSrc);
       } finally {
         setIsLoading(false);

@@ -55,7 +55,10 @@ export const useCrawlStore = create<CrawlStore>()(
         
         try {
           const job = await getCrawlJobApi(id);
-          set({ isLoading: false });
+          set(state => ({
+            jobs: [job, ...state.jobs.filter(j => j.id !== id)], 
+            isLoading: false
+          }));
           return job;
         } catch (error) {
           const apiError: ApiError = { message: (error as Error).message };
