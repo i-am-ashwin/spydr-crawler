@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 interface User {
@@ -24,17 +24,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const clearAuthData = () => {
+  const clearAuthData = useCallback(() => {
     localStorage.removeItem('auth-token');
     document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
     setUser(null);
-  };
+  }, []);
 
-  const setAuthData = (token: string, fallbackUsername?: string) => {
+  const setAuthData = useCallback((token: string, fallbackUsername?: string) => {
     localStorage.setItem('auth-token', token);
     document.cookie = `auth-token=${token}; path=/; max-age=${7 * 24 * 60 * 60}`; // 7 days
     
@@ -56,9 +52,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Invalid token format');
       }
     }
-  };
+  }, [clearAuthData]);
 
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       const token = localStorage.getItem('auth-token');
       if (!token) {
@@ -83,7 +79,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [clearAuthData, setAuthData]);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
 
   const login = async (username: string, password: string) => {
     try {

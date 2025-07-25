@@ -1,14 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { GlobeAltIcon, ArrowLeftStartOnRectangleIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/providers/AuthProvider';
 
 export function Header() {
   const pathname = usePathname();
-  const router = useRouter();
   const { logout, user } = useAuth();
   
   const handleLogout = () => {

@@ -96,7 +96,7 @@ func (pool *WorkerPool) processNextJob(workerID int) {
 
 	if result.RowsAffected != 1 {
 		tx.Rollback()
-		log.Printf("Worker %d: multiple rows error", workerID, result.RowsAffected)
+		log.Printf("Worker %d: multiple rows error: %v", workerID, result.RowsAffected)
 		return
 	}
 

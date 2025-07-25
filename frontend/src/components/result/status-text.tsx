@@ -1,5 +1,4 @@
-import { PlayIcon, LinkIcon, ClockIcon, CheckCircleIcon, XCircleIcon, GlobeEuropeAfricaIcon, CalendarIcon, ArrowPathIcon } from '@heroicons/react/24/solid'
-import { motion } from 'motion/react';
+import { ClockIcon, CheckCircleIcon, XCircleIcon, ArrowPathIcon } from '@heroicons/react/24/solid'
 import { CrawlJobStatus } from '@/lib/crawlStore/types';
 
 interface StatusTextProps {
