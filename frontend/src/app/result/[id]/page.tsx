@@ -4,11 +4,11 @@ import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLongLeftIcon, LinkIcon, TrashIcon, GlobeEuropeAfricaIcon, CalendarIcon } from '@heroicons/react/24/solid'
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import HeaderIcon from '@/components/result/header-icon';
 import StatusText from '@/components/result/status-text';
 import AnalysisListItem from '@/components/result/analysis-list';
+import AuthenticatedImage from '@/components/authenticated-image';
 import { useCrawlStore } from '@/lib/crawlStore/store';
 
 export default function ResultPage() {
@@ -146,8 +146,11 @@ export default function ResultPage() {
                             transition={{ delay: 0.3, duration: 0.6 }}
                             className="space-y-6"
                         >
-                            <Image
-                                src={result.screenshotPath || "/default-image.jpg"}
+                            <AuthenticatedImage
+                                src={result.screenshotPath 
+                                    ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/crawl/${result.id}/screenshot` 
+                                    : "/default-image.jpg"
+                                }
                                 alt="Website Screenshot"
                                 width={600}
                                 height={600}
