@@ -6,6 +6,7 @@ import { motion } from "motion/react";
 import { LinkIcon, BugAntIcon } from '@heroicons/react/24/solid'
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { useCrawlStore } from '@/lib/crawlStore/store';
+import toast from 'react-hot-toast';
 
 export default function Dashboard() {
   const [url, setUrl] = useState('');
@@ -19,11 +20,11 @@ export default function Dashboard() {
     try {
       const job = await createCrawlJobApi(url);
       if (!job) {
-        throw new Error('Failed to submit crawl job');
+        throw new Error();
       }
       router.push(`/result/${job.id}`);
     } catch (error) {
-      console.error('ERROR', error);
+      toast.error('Failed to create. Please try again.');
       setIsSubmitting(false);
     }
   };
