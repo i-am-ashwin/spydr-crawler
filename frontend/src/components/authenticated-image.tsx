@@ -24,6 +24,8 @@ export default function AuthenticatedImage({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let currentImageUrl: string | null = null;
+    
     const loadImage = async () => {
       if (!src || src === fallbackSrc) {
         setImageSrc(fallbackSrc);
@@ -45,6 +47,7 @@ export default function AuthenticatedImage({
 
         const blob = await response.blob();
         const imageUrl = URL.createObjectURL(blob);
+        currentImageUrl = imageUrl;
         setImageSrc(imageUrl);
       } catch {
         setImageSrc(fallbackSrc);
@@ -56,11 +59,11 @@ export default function AuthenticatedImage({
     loadImage();
 
     return () => {
-      if (imageSrc && imageSrc !== fallbackSrc && imageSrc.startsWith('blob:')) {
-        URL.revokeObjectURL(imageSrc);
+      if (currentImageUrl && currentImageUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(currentImageUrl);
       }
     };
-  }, [src, fallbackSrc, imageSrc]);
+  }, [src, fallbackSrc]);
 
   if (isLoading) {
     return (
