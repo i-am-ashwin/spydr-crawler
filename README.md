@@ -58,7 +58,7 @@ docker compose up --build
 ```
 ### Demo
 
-
+https://github.com/user-attachments/assets/b5119376-a699-457d-9a1a-ba27ff645ee0
 
 <video controls src="demo.webm" title="Demo"></video>
 
