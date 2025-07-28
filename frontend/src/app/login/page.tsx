@@ -59,7 +59,7 @@ export default function Login() {
             <ArrowLeftEndOnRectangleIcon className="h-8 w-8 text-white" />
           </motion.div>
 
-          <h1 className="mb-2 text-center text-2xl font-bold">Welcome Back</h1>
+          <h1 className="mb-2 text-center text-2xl font-bold">Welcome</h1>
           <p className="mb-8 text-center text-neutral-400">
             Sign in to your account to continue
           </p>

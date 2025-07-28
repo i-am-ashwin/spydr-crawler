@@ -56,6 +56,11 @@ cd web-crawler
 ```bash
 docker compose up --build
 ```
+### Demo
+
+
+
+<video controls src="demo.webm" title="Demo"></video>
 
 ### Environment Variables
 
